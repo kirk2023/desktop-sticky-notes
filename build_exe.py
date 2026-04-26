@@ -91,6 +91,9 @@ def build_exe():
         print("  - First launch may take 5-10 seconds")
         print("  - Database will be created automatically")
         print("  - You can copy the EXE to any folder")
+        print()
+        print("  Auto starting...")
+        subprocess.Popen([exe_path])
     else:
         print()
         print("BUILD FAILED! Check errors above.")

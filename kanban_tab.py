@@ -94,6 +94,22 @@ class KanbanCard(QFrame):
         shadow.setColor(QColor(0, 0, 0, 30))
         self.setGraphicsEffect(shadow)
 
+    def apply_zoom(self, zoom_level):
+        """缩放卡片内的字体和间距"""
+        title_size = max(int(11 * zoom_level), 6)
+        self.title_label.setFont(QFont("Microsoft YaHei", title_size, QFont.Bold))
+        time_size = max(int(9 * zoom_level), 5)
+        self.time_label.setFont(QFont("Microsoft YaHei", time_size))
+        # 调整内容区域间距
+        margin = max(int(10 * zoom_level), 4)
+        spacing = max(int(4 * zoom_level), 2)
+        # 找到 content widget 的 layout
+        for child in self.findChildren(QWidget):
+            if child.objectName() == "" and child.layout() and child != self:
+                child.layout().setContentsMargins(margin, int(8 * zoom_level), margin, int(8 * zoom_level))
+                child.layout().setSpacing(spacing)
+                break
+
     def enterEvent(self, event):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(10)
@@ -253,6 +269,28 @@ class KanbanLane(QWidget):
         shadow.setOffset(1, 2)
         shadow.setColor(QColor(0, 0, 0, 25))
         self.container.setGraphicsEffect(shadow)
+
+    def apply_zoom(self, zoom_level):
+        """缩放甬道内的字体和间距"""
+        # 标题字体
+        header_size = max(int(12 * zoom_level), 7)
+        self.header_label.setFont(QFont("Microsoft YaHei", header_size, QFont.Bold))
+        # 计数标签
+        count_size = max(int(9 * zoom_level), 6)
+        self.count_label.setFont(QFont("Microsoft YaHei", count_size))
+        # 标题栏高度
+        self.header.setFixedHeight(int(40 * zoom_level))
+        # 卡片间距
+        card_spacing = max(int(8 * zoom_level), 4)
+        self.cards_layout.setSpacing(card_spacing)
+        self.cards_layout.setContentsMargins(
+            int(8 * zoom_level), int(8 * zoom_level),
+            int(8 * zoom_level), int(8 * zoom_level))
+        # 缩放每个卡片
+        for i in range(self.cards_layout.count()):
+            item = self.cards_layout.itemAt(i)
+            if item.widget() and isinstance(item.widget(), KanbanCard):
+                item.widget().apply_zoom(zoom_level)
         self._update_header_color()
 
     def _update_header_color(self):
@@ -1072,6 +1110,9 @@ class KanbanTab(QWidget):
         self.db = db
         self.lanes = []
         self.current_board_id = None
+        self._zoom_level = 1.0  # 缩放级别
+        self._min_zoom = 0.5
+        self._max_zoom = 1.5
 
         self._setup_ui()
 
@@ -1351,6 +1392,31 @@ class KanbanTab(QWidget):
         if dialog.exec_() == QDialog.Accepted:
             self.refresh()
             self.event_status_changed.emit()
+
+    def wheelEvent(self, event):
+        """Ctrl+滚轮缩放看板甬道大小"""
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._zoom_level = min(self._zoom_level + 0.1, self._max_zoom)
+            else:
+                self._zoom_level = max(self._zoom_level - 0.1, self._min_zoom)
+            self._apply_zoom()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def _apply_zoom(self):
+        """应用缩放：调整甬道宽度、间距和字体大小"""
+        base_width = 280
+        base_spacing = 12
+        new_width = int(base_width * self._zoom_level)
+        new_spacing = int(base_spacing * self._zoom_level)
+        for lane_widget in self.lanes:
+            lane_widget.setFixedWidth(new_width)
+            lane_widget.apply_zoom(self._zoom_level)
+        if hasattr(self, 'lanes_layout'):
+            self.lanes_layout.setSpacing(new_spacing)
 
 
 # ==================== 导入事件对话框 ====================
