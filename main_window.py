@@ -131,6 +131,11 @@ class EventDialog(QDialog):
             ("3 小时", 180),
             ("4 小时", 240),
             ("8 小时", 480),
+            ("1 天", 480),
+            ("2 天", 960),
+            ("3 天", 1440),
+            ("5 天", 2400),
+            ("7 天", 3360),
         ]
         for text, _ in self.duration_options:
             self.duration_combo.addItem(text)
@@ -139,7 +144,7 @@ class EventDialog(QDialog):
         duration_layout.addWidget(self.duration_combo, 1)
 
         self.duration_spin = QSpinBox()
-        self.duration_spin.setRange(1, 480)
+        self.duration_spin.setRange(1, 43200)  # 最大30天
         self.duration_spin.setValue(30)
         self.duration_spin.setSuffix(" 分")
         self.duration_spin.setFont(QFont("Microsoft YaHei", 9))
@@ -268,11 +273,14 @@ class EventDialog(QDialog):
                 return
         # 如果是自定义输入，尝试解析
         try:
-            val = int(text.replace("分钟", "").replace("分", "").replace("小时", "").strip())
-            if "小时" in text and val < 24:
+            text_clean = text.replace("分钟", "").replace("分", "").replace("小时", "").replace("天", "").strip()
+            val = int(text_clean)
+            if "天" in text:
+                val *= 480
+            elif "小时" in text:
                 val *= 60
             self.duration_spin.blockSignals(True)
-            self.duration_spin.setValue(min(max(val, 1), 480))
+            self.duration_spin.setValue(min(max(val, 1), 43200))
             self.duration_spin.blockSignals(False)
         except (ValueError, TypeError):
             pass
