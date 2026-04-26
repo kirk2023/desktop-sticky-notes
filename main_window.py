@@ -1153,6 +1153,10 @@ class MainWindow(QMainWindow):
             return
 
         event_id = current.data(Qt.UserRole)
+        if not event_id:
+            QMessageBox.warning(self, "提示", "无法获取事项ID，请重新选择")
+            return
+
         title = current.text().split('\n')[0]
 
         reply = QMessageBox.question(
