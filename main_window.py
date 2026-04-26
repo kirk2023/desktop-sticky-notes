@@ -1427,10 +1427,6 @@ class MainWindow(QMainWindow):
 
         self._refresh_card_list()
 
-        # 同步刷新看板（自动分配新事件）
-        if hasattr(self, 'kanban_tab'):
-            self.kanban_tab.refresh()
-
     def _refresh_card_list(self):
         """刷新卡片列表"""
         self.card_list.clear()
@@ -1625,6 +1621,9 @@ class MainWindow(QMainWindow):
         event_data = self.db.get_event(event_id)
         if event_data and event_data['status'] == 'pending':
             self.db.update_event(event_id, status='in_progress')
+            # 状态变更，刷新看板重分配甬道
+            if hasattr(self, 'kanban_tab'):
+                self.kanban_tab.refresh()
 
     def _on_stop_timer(self, event_id):
         """暂停计时"""
