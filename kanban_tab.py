@@ -1404,6 +1404,22 @@ class KanbanTab(QWidget):
             elif any(kw in name for kw in ['待办', '待处理', '待开始', 'todo', 'backlog', 'pending', '收集箱', '需求分析']):
                 pending_lane_id = lane['id']
 
+        # DEBUG: 显示匹配结果
+        from PyQt5.QtWidgets import QMessageBox
+        matched_names = {}
+        for lane in lanes:
+            if lane['id'] == progress_lane_id:
+                matched_names['progress'] = lane['name']
+            if lane['id'] == completed_lane_id:
+                matched_names['completed'] = lane['name']
+            if lane['id'] == pending_lane_id:
+                matched_names['pending'] = lane['name']
+        QMessageBox.information(self, "DEBUG",
+            f"甬道匹配结果:\n"
+            f"pending -> {matched_names.get('pending', '默认第1个')}\n"
+            f"in_progress -> {matched_names.get('progress', '默认第2个')}\n"
+            f"completed -> {matched_names.get('completed', '默认最后1个')}")
+
         # 3. 状态变更重分配：已在甬道中的事件，如果状态变了，移到对应甬道
         if lane_ids:
             placeholders = ','.join(['?'] * len(lane_ids))
