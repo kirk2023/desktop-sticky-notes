@@ -397,6 +397,7 @@ class Database:
     def delete_event(self, event_id):
         """删除事件（同时删除关联记录）"""
         cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM kanban_lane_items WHERE event_id = ?", (event_id,))
         cursor.execute("DELETE FROM timer_records WHERE event_id = ?", (event_id,))
         cursor.execute("DELETE FROM card_positions WHERE event_id = ?", (event_id,))
         cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
