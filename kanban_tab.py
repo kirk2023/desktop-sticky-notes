@@ -1374,12 +1374,16 @@ class KanbanTab(QWidget):
             item = self.lanes_layout.takeAt(0)
 
         lanes_data = self.db.get_kanban_lanes(self.current_board_id)
+        import traceback
         for lane_data in lanes_data:
-            lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
-            lane.load_cards(self.event_edit_requested.emit)
-            lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
-            self.lanes_layout.addWidget(lane)
-            self.lanes.append(lane)
+            try:
+                lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
+                lane.load_cards(self.event_edit_requested.emit)
+                lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
+                self.lanes_layout.addWidget(lane)
+                self.lanes.append(lane)
+            except Exception as e:
+                traceback.print_exc()
 
         self.lanes_layout.addStretch()
 
