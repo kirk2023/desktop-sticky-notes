@@ -1399,7 +1399,7 @@ class KanbanTab(QWidget):
             name = lane['name'].lower()
             if any(kw in name for kw in ['完成', 'done', '上线', 'closed', '已上线', '已完成']):
                 completed_lane_id = lane['id']
-            elif any(kw in name for kw in ['进行', '开发', 'doing', 'progress', 'wip', '开发中', '测试中', '审核中', '进行中', '下一步', '等待中']):
+            elif any(kw in name for kw in ['进行', '开发', 'doing', 'progress', 'wip', '开发中', '进行中']):
                 progress_lane_id = lane['id']
             elif any(kw in name for kw in ['待办', '待处理', '待开始', 'todo', 'backlog', 'pending', '收集箱', '需求分析']):
                 pending_lane_id = lane['id']
