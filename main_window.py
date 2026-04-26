@@ -143,13 +143,15 @@ class EventDialog(QDialog):
         self.duration_combo.lineEdit().setValidator(None)  # 允许自由输入
         duration_layout.addWidget(self.duration_combo, 1)
 
-        self.duration_spin = QSpinBox()
-        self.duration_spin.setRange(1, 43200)  # 最大30天
-        self.duration_spin.setValue(30)
-        self.duration_spin.setSuffix(" 分")
+        self.duration_spin = QDoubleSpinBox()
+        self.duration_spin.setRange(0.5, 240)  # 最大240小时(30天)
+        self.duration_spin.setValue(0.5)
+        self.duration_spin.setSingleStep(0.5)
+        self.duration_spin.setSuffix(" 小时")
+        self.duration_spin.setDecimals(1)
         self.duration_spin.setFont(QFont("Microsoft YaHei", 9))
         self.duration_spin.setFixedHeight(32)
-        self.duration_spin.setFixedWidth(90)
+        self.duration_spin.setFixedWidth(100)
         # 下拉框变化时同步到微调框
         self.duration_combo.currentTextChanged.connect(self._sync_duration_from_combo)
         self.duration_spin.valueChanged.connect(self._sync_duration_from_spin)
@@ -264,11 +266,11 @@ class EventDialog(QDialog):
             self.color_label.setText(self.selected_color)
 
     def _sync_duration_from_combo(self, text):
-        """下拉框选择时同步到微调框"""
+        """下拉框选择时同步到微调框（微调框单位为小时）"""
         for display, minutes in self.duration_options:
             if display == text:
                 self.duration_spin.blockSignals(True)
-                self.duration_spin.setValue(minutes)
+                self.duration_spin.setValue(minutes / 60.0)
                 self.duration_spin.blockSignals(False)
                 return
         # 如果是自定义输入，尝试解析
@@ -276,27 +278,37 @@ class EventDialog(QDialog):
             text_clean = text.replace("分钟", "").replace("分", "").replace("小时", "").replace("天", "").strip()
             val = int(text_clean)
             if "天" in text:
-                val *= 480
+                hours = val * 8
             elif "小时" in text:
-                val *= 60
+                hours = val
+            elif "分" in text or "分钟" in text:
+                hours = val / 60.0
+            else:
+                hours = val
             self.duration_spin.blockSignals(True)
-            self.duration_spin.setValue(min(max(val, 1), 43200))
+            self.duration_spin.setValue(min(max(hours, 0.5), 240))
             self.duration_spin.blockSignals(False)
         except (ValueError, TypeError):
             pass
 
     def _sync_duration_from_spin(self, value):
         """微调框变化时同步到下拉框"""
+        minutes = int(value * 60)
         # 找到匹配的预设
-        for display, minutes in self.duration_options:
-            if minutes == value:
+        for display, mins in self.duration_options:
+            if mins == minutes:
                 self.duration_combo.blockSignals(True)
                 self.duration_combo.setCurrentText(display)
                 self.duration_combo.blockSignals(False)
                 return
         # 没有匹配的预设，显示自定义值
         self.duration_combo.blockSignals(True)
-        self.duration_combo.setCurrentText(f"{value} 分钟")
+        if minutes >= 480 and minutes % 480 == 0:
+            self.duration_combo.setCurrentText(f"{minutes // 480} 天")
+        elif minutes >= 60 and minutes % 60 == 0:
+            self.duration_combo.setCurrentText(f"{minutes // 60} 小时")
+        else:
+            self.duration_combo.setCurrentText(f"{minutes} 分钟")
         self.duration_combo.blockSignals(False)
 
     def _load_data(self, data):
@@ -312,9 +324,9 @@ class EventDialog(QDialog):
                 if minute_idx < self.minute_combo.count():
                     self.minute_combo.setCurrentIndex(minute_idx)
         duration = data.get('planned_duration_minutes', 30)
-        self.duration_spin.setValue(duration)
+        self.duration_spin.setValue(duration / 60.0)
         # 同步下拉框
-        self._sync_duration_from_spin(duration)
+        self._sync_duration_from_spin(duration / 60.0)
 
         priority_map = {"high": 0, "medium": 1, "low": 2}
         self.priority_input.setCurrentIndex(priority_map.get(data.get('priority', 'medium'), 1))
@@ -343,7 +355,7 @@ class EventDialog(QDialog):
             'title': self.title_input.text().strip(),
             'description': self.desc_input.toPlainText().strip(),
             'planned_start': f"{date_str} {hour}:{minute}",
-            'planned_duration_minutes': self.duration_spin.value(),
+            'planned_duration_minutes': int(self.duration_spin.value() * 60),
             'priority': priority_map[self.priority_input.currentIndex()],
             'color': self.selected_color,
             'board_id': self.board_combo.currentData(),
