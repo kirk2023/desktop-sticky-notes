@@ -17,7 +17,7 @@ def get_resource_path(filename):
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QLabel, QPushButton, QListWidget, QListWidgetItem,
                               QDialog, QFormLayout, QLineEdit, QTextEdit,
-                              QDateTimeEdit, QSpinBox, QComboBox, QColorDialog,
+                              QDateTimeEdit, QSpinBox, QDoubleSpinBox, QComboBox, QColorDialog,
                               QTabWidget, QMessageBox, QSystemTrayIcon, QMenu,
                               QAction, QGroupBox, QSplitter, QHeaderView,
                               QTableWidget, QTableWidgetItem, QAbstractItemView,
