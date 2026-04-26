@@ -397,6 +397,7 @@ class MainWindow(QMainWindow):
         self.kanban_tab.event_edit_requested.connect(self._on_kanban_edit_event)
         self.kanban_tab.event_status_changed.connect(self._on_kanban_status_changed)
         self.kanban_tab.create_event_requested.connect(self._on_kanban_create_event)
+        self.kanban_tab.pin_card_to_desktop.connect(self._create_sticky_card)
         self.tabs.addTab(self.kanban_tab, "📋 看板")
 
         # Tab2: 事件列表
@@ -1669,6 +1670,9 @@ class MainWindow(QMainWindow):
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.db.update_event(event_id, status='completed', completed_at=now_str)
         self._refresh_event_list()
+        # 刷新看板，将已完成事件移到对应甬道
+        if hasattr(self, 'kanban_tab'):
+            self.kanban_tab.refresh()
 
     # ==================== 通知检查 ====================
 

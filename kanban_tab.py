@@ -13,6 +13,7 @@ class KanbanCard(QFrame):
     """看板事件卡片 - 可拖拽"""
 
     event_edit_requested = pyqtSignal(int)
+    pin_to_desktop = pyqtSignal(int)  # Pin到桌面信号
 
     PRIORITY_COLORS = {
         "high": "#e74c3c",
@@ -26,10 +27,13 @@ class KanbanCard(QFrame):
         self.event_id = event_data['id']
         self.setMinimumHeight(60)
         self.setCursor(Qt.OpenHandCursor)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_card_context_menu)
         self._drag_start_pos = None
 
         self._setup_ui()
         self._apply_style()
+        self._update_header_color()
 
     def _setup_ui(self):
         main_layout = QHBoxLayout(self)
@@ -154,6 +158,36 @@ class KanbanCard(QFrame):
         self.setCursor(Qt.OpenHandCursor)
         super().mouseReleaseEvent(event)
 
+    def _show_card_context_menu(self, pos):
+        """卡片右键菜单"""
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #ffffff;
+                border: 1px solid #dcdde1;
+                border-radius: 6px;
+                padding: 6px;
+                font-family: "Microsoft YaHei";
+                font-size: 12px;
+            }
+            QMenu::item {
+                padding: 6px 24px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+        """)
+        edit_action = menu.addAction("✏️ 编辑事项")
+        pin_action = menu.addAction("📌 Pin 到桌面")
+
+        action = menu.exec_(self.mapToGlobal(pos))
+        if action == edit_action:
+            self.event_edit_requested.emit(self.event_id)
+        elif action == pin_action:
+            self.pin_to_desktop.emit(self.event_id)
+
     def mouseDoubleClickEvent(self, event):
         self.event_edit_requested.emit(self.event_id)
         super().mouseDoubleClickEvent(event)
@@ -163,6 +197,8 @@ class KanbanCard(QFrame):
 
 class KanbanLane(QWidget):
     """看板甬道 - 包含标题和卡片列表，接受拖放"""
+
+    pin_to_desktop = pyqtSignal(int)  # 转发卡片Pin信号
 
     def __init__(self, lane_data, db, board_id, parent=None):
         super().__init__(parent)
@@ -388,6 +424,7 @@ class KanbanLane(QWidget):
         for event in events:
             card = KanbanCard(event, self)
             card.event_edit_requested.connect(event_edit_callback)
+            card.pin_to_desktop.connect(self.pin_to_desktop.emit)
             self.cards_layout.addWidget(card)
 
         self.count_label.setText(str(len(events)))
@@ -1104,6 +1141,7 @@ class KanbanTab(QWidget):
     event_edit_requested = pyqtSignal(int)
     event_status_changed = pyqtSignal()
     create_event_requested = pyqtSignal(int)
+    pin_card_to_desktop = pyqtSignal(int)  # Pin卡片到桌面
 
     def __init__(self, db, parent=None):
         super().__init__(parent)
@@ -1292,6 +1330,7 @@ class KanbanTab(QWidget):
         for lane_data in lanes_data:
             lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
             lane.load_cards(self.event_edit_requested.emit)
+            lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
             self.lanes_layout.addWidget(lane)
             self.lanes.append(lane)
 
@@ -1343,29 +1382,69 @@ class KanbanTab(QWidget):
         else:
             assigned_ids = set()
 
-        unassigned = [e for e in all_events if e['id'] not in assigned_ids and e['status'] != 'archived']
-        if not unassigned:
-            # 即使没有新事件要分配，也要刷新（可能清理了旧卡片）
-            for lane_widget in self.lanes:
-                lane_widget.load_cards(self.event_edit_requested.emit)
-            return
-
-        # 按状态分配：
-        # - pending -> 第一个甬道
-        # - in_progress -> 第二个甬道（如果有）
-        # - completed -> 最后一个甬道
         first_lane_id = lanes[0]['id']
         mid_lane_id = lanes[1]['id'] if len(lanes) >= 2 else lanes[0]['id']
         last_lane_id = lanes[-1]['id']
 
+        # 按甬道名称关键词匹配目标甬道
+        completed_lane_id = last_lane_id
+        progress_lane_id = mid_lane_id
+        pending_lane_id = first_lane_id
+        for lane in lanes:
+            name = lane['name'].lower()
+            if any(kw in name for kw in ['完成', 'done', '上线', 'closed', '已上线', '已完成']):
+                completed_lane_id = lane['id']
+            elif any(kw in name for kw in ['进行', '开发', 'doing', 'progress', 'wip', '开发中', '测试中', '审核中', '进行中', '下一步', '等待中']):
+                progress_lane_id = lane['id']
+            elif any(kw in name for kw in ['待办', '待处理', '待开始', 'todo', 'backlog', 'pending', '收集箱', '需求分析']):
+                pending_lane_id = lane['id']
+
+        # 3. 状态变更重分配：已在甬道中的事件，如果状态变了，移到对应甬道
+        if lane_ids:
+            placeholders = ','.join(['?'] * len(lane_ids))
+            cursor = self.db.conn.cursor()
+            # 已完成的事件移到匹配的甬道
+            cursor.execute(
+                f"""DELETE FROM kanban_lane_items
+                    WHERE lane_id IN ({placeholders}) AND lane_id != ?
+                    AND event_id IN (SELECT id FROM events WHERE status = 'completed')""",
+                lane_ids + [completed_lane_id])
+            cursor.execute(
+                f"""INSERT OR IGNORE INTO kanban_lane_items (lane_id, event_id)
+                    SELECT ?, id FROM events
+                    WHERE status = 'completed' AND board_id = ?
+                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id = ?)""",
+                [completed_lane_id, self.current_board_id, completed_lane_id])
+            # 进行中的事件移到匹配的甬道
+            cursor.execute(
+                f"""DELETE FROM kanban_lane_items
+                    WHERE lane_id IN ({placeholders}) AND lane_id != ?
+                    AND event_id IN (SELECT id FROM events WHERE status = 'in_progress')""",
+                lane_ids + [progress_lane_id])
+            cursor.execute(
+                f"""INSERT OR IGNORE INTO kanban_lane_items (lane_id, event_id)
+                    SELECT ?, id FROM events
+                    WHERE status = 'in_progress' AND board_id = ?
+                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id = ?)""",
+                [progress_lane_id, self.current_board_id, progress_lane_id])
+            self.db.conn.commit()
+
+        unassigned = [e for e in all_events if e['id'] not in assigned_ids and e['status'] != 'archived']
+        if not unassigned:
+            # 即使没有新事件要分配，也要刷新（可能清理了旧卡片或状态变更）
+            for lane_widget in self.lanes:
+                lane_widget.load_cards(self.event_edit_requested.emit)
+            return
+
+        # 4. 按状态分配未分配事件（同样按名称匹配）
         for event in unassigned:
             status = event.get('status', 'pending')
             if status == 'completed':
-                self.db.add_event_to_lane(last_lane_id, event['id'])
+                self.db.add_event_to_lane(completed_lane_id, event['id'])
             elif status == 'in_progress':
-                self.db.add_event_to_lane(mid_lane_id, event['id'])
+                self.db.add_event_to_lane(progress_lane_id, event['id'])
             else:
-                self.db.add_event_to_lane(first_lane_id, event['id'])
+                self.db.add_event_to_lane(pending_lane_id, event['id'])
 
         # 重新加载卡片
         for lane_widget in self.lanes:

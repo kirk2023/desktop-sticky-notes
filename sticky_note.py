@@ -596,8 +596,9 @@ class StickyNoteCard(QWidget):
 
         # setWindowFlags 会隐藏窗口，需要重新显示并恢复属性
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setGeometry(pos.x(), pos.y(), size.width(), size.height())
         self.show()
+        # 延迟恢复尺寸（setWindowFlags + show 可能导致尺寸重置）
+        QTimer.singleShot(0, lambda: self.setGeometry(pos.x(), pos.y(), size.width(), size.height()))
 
     def _get_total_seconds(self):
         """获取当前总计时秒数（累计 + 当前会话）"""
