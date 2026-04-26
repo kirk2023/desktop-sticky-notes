@@ -1329,6 +1329,14 @@ class KanbanTab(QWidget):
             item = self.lanes_layout.takeAt(0)
 
         lanes_data = self.db.get_kanban_lanes(self.current_board_id)
+        # DEBUG: 临时调试信息
+        from PyQt5.QtWidgets import QMessageBox
+        lane_names = [ld['name'] for ld in lanes_data]
+        QMessageBox.information(self, "DEBUG",
+            f"board_id={self.current_board_id}\n"
+            f"数据库返回甬道数={len(lanes_data)}\n"
+            f"甬道列表={lane_names}\n"
+            f"layout子项数(添加前)={self.lanes_layout.count()}")
         for lane_data in lanes_data:
             lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
             lane.load_cards(self.event_edit_requested.emit)
