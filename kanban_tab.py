@@ -1318,13 +1318,15 @@ class KanbanTab(QWidget):
         if self.current_board_id is None:
             return
 
+        # 清空旧甬道
+        for lane in self.lanes:
+            lane.setParent(None)
+            lane.deleteLater()
+        self.lanes.clear()
+
+        # 清空 layout 中的剩余项（如 stretch）
         while self.lanes_layout.count():
             item = self.lanes_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
-
-        self.lanes.clear()
 
         lanes_data = self.db.get_kanban_lanes(self.current_board_id)
         for lane_data in lanes_data:
