@@ -1331,6 +1331,7 @@ class KanbanTab(QWidget):
         lanes_data = self.db.get_kanban_lanes(self.current_board_id)
         # DEBUG: 临时调试信息
         from PyQt5.QtWidgets import QMessageBox
+        import traceback
         lane_names = [ld['name'] for ld in lanes_data]
         QMessageBox.information(self, "DEBUG",
             f"board_id={self.current_board_id}\n"
@@ -1338,19 +1339,17 @@ class KanbanTab(QWidget):
             f"甬道列表={lane_names}\n"
             f"layout子项数(添加前)={self.lanes_layout.count()}")
         for idx, lane_data in enumerate(lanes_data):
-            lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
-            lane.load_cards(self.event_edit_requested.emit)
-            lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
-            self.lanes_layout.addWidget(lane)
-            self.lanes.append(lane)
-            # DEBUG: 每添加一个甬道检查
-            if idx >= 1:
-                QMessageBox.information(self, "DEBUG",
-                    f"已添加第{idx+1}个甬道: {lane_data['name']}\n"
-                    f"lane.isVisible()={lane.isVisible()}\n"
-                    f"lane.width()={lane.width()}\n"
-                    f"lane.parent()={lane.parent().objectName() if lane.parent() else 'None'}\n"
-                    f"layout子项数={self.lanes_layout.count()}")
+            try:
+                lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
+                lane.load_cards(self.event_edit_requested.emit)
+                lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
+                self.lanes_layout.addWidget(lane)
+                self.lanes.append(lane)
+            except Exception as e:
+                QMessageBox.critical(self, "ERROR",
+                    f"第{idx+1}个甬道创建失败: {lane_data['name']}\n"
+                    f"错误: {str(e)}\n\n"
+                    f"{traceback.format_exc()}")
 
         self.lanes_layout.addStretch()
 
