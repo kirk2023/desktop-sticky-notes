@@ -1420,34 +1420,27 @@ class KanbanTab(QWidget):
             f"in_progress -> {matched_names.get('progress', '默认第2个')}\n"
             f"completed -> {matched_names.get('completed', '默认最后1个')}")
 
-        # 3. 状态变更重分配：已在甬道中的事件，如果状态变了，移到对应甬道
+        # 3. 状态变更重分配：仅在事件不在任何甬道时才分配（不覆盖用户手动拖拽）
         if lane_ids:
             placeholders = ','.join(['?'] * len(lane_ids))
             cursor = self.db.conn.cursor()
-            # 已完成的事件移到匹配的甬道
-            cursor.execute(
-                f"""DELETE FROM kanban_lane_items
-                    WHERE lane_id IN ({placeholders}) AND lane_id != ?
-                    AND event_id IN (SELECT id FROM events WHERE status = 'completed')""",
-                lane_ids + [completed_lane_id])
-            cursor.execute(
-                f"""INSERT OR IGNORE INTO kanban_lane_items (lane_id, event_id)
-                    SELECT ?, id FROM events
-                    WHERE status = 'completed' AND board_id = ?
-                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id = ?)""",
-                [completed_lane_id, self.current_board_id, completed_lane_id])
-            # 进行中的事件移到匹配的甬道
-            cursor.execute(
-                f"""DELETE FROM kanban_lane_items
-                    WHERE lane_id IN ({placeholders}) AND lane_id != ?
-                    AND event_id IN (SELECT id FROM events WHERE status = 'in_progress')""",
-                lane_ids + [progress_lane_id])
+            # 找出状态变更但仍在旧甬道的事件，仅当事件不在对应目标甬道时才移动
+            # in_progress 事件不在 progress_lane_id 的 -> 移过去
             cursor.execute(
                 f"""INSERT OR IGNORE INTO kanban_lane_items (lane_id, event_id)
                     SELECT ?, id FROM events
                     WHERE status = 'in_progress' AND board_id = ?
-                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id = ?)""",
-                [progress_lane_id, self.current_board_id, progress_lane_id])
+                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id = ?)
+                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id IN ({placeholders}))""",
+                [progress_lane_id, self.current_board_id, progress_lane_id] + lane_ids)
+            # completed 事件不在 completed_lane_id 的 -> 移过去
+            cursor.execute(
+                f"""INSERT OR IGNORE INTO kanban_lane_items (lane_id, event_id)
+                    SELECT ?, id FROM events
+                    WHERE status = 'completed' AND board_id = ?
+                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id = ?)
+                    AND id NOT IN (SELECT event_id FROM kanban_lane_items WHERE lane_id IN ({placeholders}))""",
+                [completed_lane_id, self.current_board_id, completed_lane_id] + lane_ids)
             self.db.conn.commit()
 
         unassigned = [e for e in all_events if e['id'] not in assigned_ids and e['status'] != 'archived']
