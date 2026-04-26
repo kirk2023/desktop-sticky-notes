@@ -107,7 +107,8 @@ def build_exe():
                 pass
 
     print()
-    input("Press Enter to exit...")
+    if result.returncode == 0:
+        time.sleep(2)
 
 
 if __name__ == "__main__":
