@@ -66,16 +66,23 @@ class KanbanCard(QFrame):
         # 计划时间
         duration = self.event_data.get('planned_duration_minutes', 30)
         planned_start = self.event_data.get('planned_start', '')
+        # 时长显示：>=60分钟用小时，否则用分钟
+        if duration >= 60 and duration % 60 == 0:
+            duration_str = f"{duration // 60}小时"
+        elif duration >= 60:
+            duration_str = f"{duration / 60:.1f}小时"
+        else:
+            duration_str = f"{duration}分钟"
         if planned_start:
             try:
                 dt = QDateTime.fromString(planned_start, "yyyy-MM-dd HH:mm")
                 time_str = dt.toString("HH:mm")
                 date_str = dt.toString("MM/dd")
-                time_text = f"{date_str} {time_str} | {duration}分钟"
+                time_text = f"{date_str} {time_str} | {duration_str}"
             except Exception:
-                time_text = f"计划 {duration} 分钟"
+                time_text = f"计划 {duration_str}"
         else:
-            time_text = f"计划 {duration} 分钟"
+            time_text = f"计划 {duration_str}"
 
         self.time_label = QLabel(time_text)
         self.time_label.setFont(QFont("Microsoft YaHei", 9))

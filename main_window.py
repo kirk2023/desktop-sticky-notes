@@ -1149,14 +1149,15 @@ class MainWindow(QMainWindow):
             self._refresh_event_list()
             self.statusBar().showMessage(f"✅ 已添加事项: {data['title']}", 3000)
 
-    def _edit_event(self):
+    def _edit_event(self, event_id=None):
         """编辑事件"""
-        current = self.event_list.currentItem()
-        if not current:
-            QMessageBox.information(self, "提示", "请先选择一个事项")
-            return
+        if event_id is None:
+            current = self.event_list.currentItem()
+            if not current:
+                QMessageBox.information(self, "提示", "请先选择一个事项")
+                return
+            event_id = current.data(Qt.UserRole)
 
-        event_id = current.data(Qt.UserRole)
         event_data = self.db.get_event(event_id)
         if not event_data:
             return
