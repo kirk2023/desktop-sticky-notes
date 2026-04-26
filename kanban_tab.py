@@ -1297,6 +1297,45 @@ class KanbanTab(QWidget):
         self.board_list_page.refresh()
         self.current_board_id = None
 
+    def _match_lane_by_status(self, status):
+        """根据事件状态匹配目标甬道ID"""
+        if self.current_board_id is None:
+            return None
+        lanes = self.db.get_kanban_lanes(self.current_board_id)
+        if not lanes:
+            return None
+        first_lane_id = lanes[0]['id']
+        mid_lane_id = lanes[1]['id'] if len(lanes) >= 2 else lanes[0]['id']
+        last_lane_id = lanes[-1]['id']
+        target = None
+        if status == 'completed':
+            target = last_lane_id
+        elif status == 'in_progress':
+            target = mid_lane_id
+        elif status == 'pending':
+            target = first_lane_id
+        # 按名称精确匹配
+        for lane in lanes:
+            name = lane['name'].lower()
+            if status == 'completed' and any(kw in name for kw in ['完成', 'done', '上线', 'closed', '已上线', '已完成']):
+                target = lane['id']
+            elif status == 'in_progress' and any(kw in name for kw in ['进行', '开发', 'doing', 'progress', 'wip', '开发中', '进行中']):
+                target = lane['id']
+            elif status == 'pending' and any(kw in name for kw in ['待办', '待处理', '待开始', 'todo', 'backlog', 'pending', '收集箱', '需求分析']):
+                target = lane['id']
+        return target
+
+    def move_event_to_status_lane(self, event_id, status):
+        """将事件移到对应状态的甬道（仅在事件属于当前看板时）"""
+        event = self.db.get_event(event_id)
+        if not event or event.get('board_id') != self.current_board_id:
+            return
+        target_lane_id = self._match_lane_by_status(status)
+        if target_lane_id:
+            self.db.move_event_to_lane(event_id, target_lane_id)
+            if self.current_board_id is not None:
+                self.refresh()
+
     def open_board(self, board_id):
         """打开指定看板"""
         self.current_board_id = board_id
@@ -1403,22 +1442,6 @@ class KanbanTab(QWidget):
                 progress_lane_id = lane['id']
             elif any(kw in name for kw in ['待办', '待处理', '待开始', 'todo', 'backlog', 'pending', '收集箱', '需求分析']):
                 pending_lane_id = lane['id']
-
-        # DEBUG: 显示匹配结果
-        from PyQt5.QtWidgets import QMessageBox
-        matched_names = {}
-        for lane in lanes:
-            if lane['id'] == progress_lane_id:
-                matched_names['progress'] = lane['name']
-            if lane['id'] == completed_lane_id:
-                matched_names['completed'] = lane['name']
-            if lane['id'] == pending_lane_id:
-                matched_names['pending'] = lane['name']
-        QMessageBox.information(self, "DEBUG",
-            f"甬道匹配结果:\n"
-            f"pending -> {matched_names.get('pending', '默认第1个')}\n"
-            f"in_progress -> {matched_names.get('progress', '默认第2个')}\n"
-            f"completed -> {matched_names.get('completed', '默认最后1个')}")
 
         # 3. 状态变更重分配：仅在事件不在任何甬道时才分配（不覆盖用户手动拖拽）
         if lane_ids:

@@ -1621,9 +1621,9 @@ class MainWindow(QMainWindow):
         event_data = self.db.get_event(event_id)
         if event_data and event_data['status'] == 'pending':
             self.db.update_event(event_id, status='in_progress')
-            # 状态变更，刷新看板重分配甬道
+            # 状态变更，移动到对应甬道
             if hasattr(self, 'kanban_tab'):
-                self.kanban_tab.refresh()
+                self.kanban_tab.move_event_to_status_lane(event_id, 'in_progress')
 
     def _on_stop_timer(self, event_id):
         """暂停计时"""
@@ -1676,9 +1676,9 @@ class MainWindow(QMainWindow):
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.db.update_event(event_id, status='completed', completed_at=now_str)
         self._refresh_event_list()
-        # 刷新看板，将已完成事件移到对应甬道
+        # 将已完成事件移到对应甬道
         if hasattr(self, 'kanban_tab'):
-            self.kanban_tab.refresh()
+            self.kanban_tab.move_event_to_status_lane(event_id, 'completed')
 
     # ==================== 通知检查 ====================
 
