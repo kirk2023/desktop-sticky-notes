@@ -452,11 +452,13 @@ class KanbanLane(QWidget):
             # 同步更新事项状态：根据目标甬道位置
             self._sync_event_status(event_id)
 
+            # 仅重新加载当前看板所有甬道的卡片，不重建甬道（保持缩放）
             parent = self.parent()
             while parent and not isinstance(parent, KanbanTab):
                 parent = parent.parent()
             if parent:
-                parent.refresh()
+                for lane_widget in parent.lanes:
+                    lane_widget.load_cards(parent.event_edit_requested.emit)
                 parent.event_status_changed.emit()
         else:
             event.ignore()
