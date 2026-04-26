@@ -1172,6 +1172,9 @@ class MainWindow(QMainWindow):
 
             self.db.delete_event(event_id)
             self._refresh_event_list()
+            # 同步刷新看板
+            if hasattr(self, 'kanban_tab'):
+                self.kanban_tab.refresh()
             self.statusBar().showMessage(f"🗑️ 已删除事项: {title}", 3000)
 
     def _get_selected_event_ids(self):
