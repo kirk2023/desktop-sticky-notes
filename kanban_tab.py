@@ -431,8 +431,9 @@ class KanbanLane(QWidget):
         self.count_label.setText(str(len(events)))
         self.cards_layout.addStretch()
         # 重新应用缩放
-        if self._zoom_level != 1.0:
-            self.apply_zoom(self._zoom_level)
+        zoom = getattr(self, '_zoom_level', 1.0)
+        if zoom != 1.0:
+            self.apply_zoom(zoom)
 
     # ---- 拖放 ----
 
