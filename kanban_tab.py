@@ -672,8 +672,9 @@ class NewBoardDialog(QDialog):
         self.db = db
         self.board_name = ""
         self.template_name = None
+        self.deadline = ""
         self.setWindowTitle("新建看板")
-        self.setFixedSize(500, 480)
+        self.setFixedSize(500, 560)
         self._setup_ui()
         self._apply_style()
 
@@ -715,6 +716,48 @@ class NewBoardDialog(QDialog):
             }
         """)
         layout.addWidget(self.name_input)
+
+        layout.addSpacing(8)
+
+        # 截止日期输入
+        deadline_label = QLabel("截止日期（可选）")
+        deadline_label.setFont(QFont("Microsoft YaHei", 11))
+        deadline_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        layout.addWidget(deadline_label)
+
+        deadline_layout = QHBoxLayout()
+        deadline_layout.setSpacing(8)
+
+        self.deadline_input = QDateEdit()
+        self.deadline_input.setCalendarPopup(True)
+        self.deadline_input.setDisplayFormat("yyyy-MM-dd")
+        self.deadline_input.setFont(QFont("Microsoft YaHei", 12))
+        self.deadline_input.setFixedHeight(40)
+        self.deadline_input.setDate(QDate.currentDate())
+        self.deadline_input.setStyleSheet("""
+            QDateEdit {
+                background-color: #f8f9fa;
+                border: 1px solid #dcdde1;
+                border-radius: 6px;
+                padding: 0 12px;
+                color: #2c3e50;
+            }
+            QDateEdit:focus {
+                border-color: #3498db;
+                background-color: #ffffff;
+            }
+        """)
+        deadline_layout.addWidget(self.deadline_input, 1)
+
+        self.deadline_cb = QCheckBox("设置截止日期")
+        self.deadline_cb.setFont(QFont("Microsoft YaHei", 11))
+        self.deadline_cb.setStyleSheet("color: #555; background: transparent; border: none;")
+        self.deadline_cb.setChecked(False)
+        self.deadline_cb.toggled.connect(self.deadline_input.setEnabled)
+        self.deadline_input.setEnabled(False)
+        deadline_layout.addWidget(self.deadline_cb)
+
+        layout.addLayout(deadline_layout)
 
         layout.addSpacing(8)
 
@@ -812,6 +855,11 @@ class NewBoardDialog(QDialog):
                     self.template_name = tmpl_name
                     break
 
+        if self.deadline_cb.isChecked():
+            self.deadline = self.deadline_input.date().toString("yyyy-MM-dd")
+        else:
+            self.deadline = ""
+
         self.board_name = name
         self.accept()
 
@@ -895,6 +943,16 @@ class BoardCard(QFrame):
         self.stats_label.setFont(QFont("Microsoft YaHei", 10))
         self.stats_label.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
         layout.addWidget(self.stats_label)
+
+        # 截止日期
+        deadline = self.board_data.get('deadline', '')
+        if deadline:
+            self.deadline_label = QLabel(f"截止日期: {deadline}")
+            self.deadline_label.setFont(QFont("Microsoft YaHei", 10))
+            self.deadline_label.setStyleSheet("color: #e74c3c; background: transparent; border: none;")
+            layout.addWidget(self.deadline_label)
+        else:
+            self.deadline_label = QLabel("")
 
         # 创建日期
         created_at = self.board_data.get('created_at', '')
@@ -1080,6 +1138,8 @@ class BoardListPage(QWidget):
         dialog = NewBoardDialog(self.db, self)
         if dialog.exec_() == QDialog.Accepted:
             board_id = self.db.create_board(dialog.board_name, dialog.template_name)
+            if dialog.deadline:
+                self.db.update_board(board_id, deadline=dialog.deadline)
             self.refresh()
             self.board_opened.emit(board_id)
 
@@ -1107,6 +1167,7 @@ class BoardListPage(QWidget):
 
         open_action = menu.addAction("打开看板")
         rename_action = menu.addAction("重命名")
+        deadline_action = menu.addAction("设置截止日期")
         delete_action = menu.addAction("删除看板")
 
         action = menu.exec_(card_widget.mapToGlobal(pos))
@@ -1114,6 +1175,8 @@ class BoardListPage(QWidget):
             self.board_opened.emit(board_id)
         elif action == rename_action:
             self._rename_board(board_id, board_name)
+        elif action == deadline_action:
+            self._set_board_deadline(board_id, board_name)
         elif action == delete_action:
             self._delete_board(board_id, board_name)
 
@@ -1125,6 +1188,83 @@ class BoardListPage(QWidget):
         )
         if ok and new_name.strip():
             self.db.update_board(board_id, name=new_name.strip())
+            self.refresh()
+
+    def _set_board_deadline(self, board_id, board_name):
+        """设置看板截止日期"""
+        board = self.db.get_board(board_id)
+        current_deadline = board.get('deadline', '') if board else ''
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"设置截止日期 - {board_name}")
+        dialog.setFixedSize(360, 200)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+
+        title = QLabel("设置看板截止日期")
+        title.setFont(QFont("Microsoft YaHei", 13, QFont.Bold))
+        title.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        layout.addWidget(title)
+
+        date_input = QDateEdit()
+        date_input.setCalendarPopup(True)
+        date_input.setDisplayFormat("yyyy-MM-dd")
+        date_input.setFont(QFont("Microsoft YaHei", 11))
+        date_input.setFixedHeight(36)
+        if current_deadline:
+            try:
+                from PyQt5.QtCore import QDate
+                parts = current_deadline.split('-')
+                date_input.setDate(QDate(int(parts[0]), int(parts[1]), int(parts[2])))
+            except Exception:
+                date_input.setDate(QDate.currentDate())
+        else:
+            date_input.setDate(QDate.currentDate())
+        layout.addWidget(date_input)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        clear_btn = QPushButton("清除")
+        clear_btn.setFont(QFont("Microsoft YaHei", 10))
+        clear_btn.setFixedHeight(32)
+        clear_btn.clicked.connect(dialog.reject)
+        btn_layout.addWidget(clear_btn)
+
+        confirm_btn = QPushButton("确定")
+        confirm_btn.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
+        confirm_btn.setFixedHeight(32)
+        confirm_btn.clicked.connect(dialog.accept)
+        btn_layout.addWidget(confirm_btn)
+
+        layout.addLayout(btn_layout)
+
+        dialog.setStyleSheet("""
+            QDialog { background-color: #ffffff; }
+            QLabel { border: none; }
+            QDateEdit {
+                background-color: #f8f9fa;
+                border: 1px solid #dcdde1;
+                border-radius: 6px;
+                padding: 0 12px;
+                color: #2c3e50;
+            }
+            QDateEdit:focus { border-color: #3498db; background-color: #ffffff; }
+            QPushButton {
+                background-color: #ecf0f1;
+                color: #555;
+                border: none;
+                border-radius: 6px;
+                padding: 0 20px;
+            }
+            QPushButton:hover { background-color: #dfe6e9; }
+        """)
+
+        if dialog.exec_() == QDialog.Accepted:
+            deadline_str = date_input.date().toString("yyyy-MM-dd")
+            self.db.update_board(board_id, deadline=deadline_str)
             self.refresh()
 
     def _delete_board(self, board_id, board_name):

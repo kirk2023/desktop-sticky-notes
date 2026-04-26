@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 # 数据库版本号（表结构变更时递增）
-DB_VERSION = 9
+DB_VERSION = 10
 
 # 配置文件路径
 CONFIG_FILE = os.path.join(
@@ -187,6 +187,13 @@ class Database:
                 except Exception:
                     pass
 
+            # v9 -> v10: kanban_boards 表加 deadline 截止日期
+            if current_version < 10:
+                try:
+                    cursor.execute("ALTER TABLE kanban_boards ADD COLUMN deadline TEXT DEFAULT NULL")
+                except Exception:
+                    pass
+
             # 更新版本号
             cursor.execute("DELETE FROM _db_version")
             cursor.execute("INSERT INTO _db_version (version) VALUES (?)", (DB_VERSION,))
@@ -248,6 +255,7 @@ class Database:
                 name TEXT NOT NULL,
                 sort_order INTEGER DEFAULT 0,
                 is_default INTEGER DEFAULT 0,
+                deadline TEXT DEFAULT NULL,
                 created_at TEXT DEFAULT (datetime('now', 'localtime'))
             )
         """)
@@ -712,12 +720,23 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def update_board(self, board_id, name=None):
-        """更新看板（重命名）"""
-        if name is None:
+    def update_board(self, board_id, name=None, deadline=None):
+        """更新看板（重命名、设置截止日期）"""
+        updates = []
+        values = []
+        if name is not None:
+            updates.append("name=?")
+            values.append(name)
+        if deadline is not None:
+            updates.append("deadline=?")
+            values.append(deadline)
+        if not updates:
             return
+        values.append(board_id)
         cursor = self.conn.cursor()
-        cursor.execute("UPDATE kanban_boards SET name=? WHERE id=?", (name, board_id))
+        cursor.execute(
+            f"UPDATE kanban_boards SET {', '.join(updates)} WHERE id=?",
+            values)
         self.conn.commit()
 
     def delete_board(self, board_id):

@@ -410,17 +410,26 @@ class MainWindow(QMainWindow):
         self._setup_cards_tab()
         self.tabs.addTab(self.cards_tab, "📌 桌面卡片")
 
-        # Tab3: 归档分析
+        # Tab4: 甘特图
+        from gantt_tab import GanttTab
+        self.gantt_tab = GanttTab(self.db)
+        self.gantt_tab.event_edit_requested.connect(self._edit_event)
+        self.tabs.addTab(self.gantt_tab, "📊 甘特图")
+
+        # Tab5: 归档分析
         self.archive_tab = QWidget()
         self._setup_archive_tab()
         self.tabs.addTab(self.archive_tab, "📊 归档分析")
 
-        # Tab5: 设置
+        # Tab6: 设置
         self.settings_tab = QWidget()
         self._setup_settings_tab()
         self.tabs.addTab(self.settings_tab, "⚙️ 设置")
 
         main_layout.addWidget(self.tabs)
+
+        # 标签页切换信号
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
         # 初始化数据
         self._refresh_event_list()
@@ -2141,6 +2150,17 @@ class MainWindow(QMainWindow):
             if hasattr(self.kanban_tab, 'current_board_id') and self.kanban_tab.current_board_id:
                 self.kanban_tab.refresh()
             self.statusBar().showMessage(f"✅ 已创建事项: {data['title']}", 3000)
+
+    # ==================== 标签页切换 ====================
+
+    def _on_tab_changed(self, index):
+        """标签页切换时刷新对应数据"""
+        # 获取甘特图标签的索引
+        for i in range(self.tabs.count()):
+            if self.tabs.widget(i) is self.gantt_tab:
+                if index == i:
+                    self.gantt_tab.load_boards()
+                break
 
     # ==================== 状态更新 ====================
 
