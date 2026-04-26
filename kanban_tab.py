@@ -1200,6 +1200,7 @@ class BoardListPage(QWidget):
 
     def _set_board_deadline(self, board_id, board_name):
         """设置看板截止日期"""
+        from PyQt5.QtCore import QDate
         board = self.db.get_board(board_id)
         current_deadline = board.get('deadline', '') if board else ''
 
@@ -1223,7 +1224,6 @@ class BoardListPage(QWidget):
         date_input.setFixedHeight(36)
         if current_deadline:
             try:
-                from PyQt5.QtCore import QDate
                 parts = current_deadline.split('-')
                 date_input.setDate(QDate(int(parts[0]), int(parts[1]), int(parts[2])))
             except Exception:
