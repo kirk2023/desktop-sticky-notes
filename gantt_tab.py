@@ -77,8 +77,9 @@ class GanttChartWidget(QWidget):
                     event_date = dt.date()
                     if min_date is None or event_date < min_date:
                         min_date = event_date
-                    end_dt = dt + timedelta(minutes=duration_min)
-                    end_d = end_dt.date()
+                    # 按8小时工作日折算结束日期
+                    work_days = duration_min / 480.0
+                    end_d = event_date + timedelta(days=max(int(work_days), 1))
                     if max_date is None or end_d > max_date:
                         max_date = end_d
                 except (ValueError, TypeError):
@@ -280,9 +281,8 @@ class GanttChartWidget(QWidget):
                 continue
 
             bar_x = self._day_to_x(event_start_date)
-            bar_days = (event_end_date - event_start_date).days + 1
-            if bar_days < 1:
-                bar_days = 1
+            # 按8小时工作日折算：480分钟=1天
+            bar_days = max(duration_min / 480.0, 0.5)
             bar_width = bar_days * self.DAY_WIDTH - 4  # 留2px间距
 
             bar_y = y + 6
