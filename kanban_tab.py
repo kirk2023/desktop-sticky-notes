@@ -330,7 +330,7 @@ class KanbanLane(QWidget):
         self.container.setStyleSheet(f"""
             #laneContainer {{
                 background-color: #ffffff;
-                border: 1px solid #e8e8e8;
+                border: 1px solid #d0d0d0;
                 border-radius: 8px;
             }}
             #laneHeader {{
