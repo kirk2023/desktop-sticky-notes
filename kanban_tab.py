@@ -1337,6 +1337,10 @@ class KanbanTab(QWidget):
 
         self.lanes_layout.addStretch()
 
+        # 统一刷新所有甬道样式（确保外框和标题颜色正确显示）
+        for lane in self.lanes:
+            lane._update_header_color()
+
         # 自动分配：将未分配到任何看板甬道的事件放入第一个甬道
         self._auto_assign_unassigned_events()
 
