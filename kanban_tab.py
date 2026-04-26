@@ -30,6 +30,7 @@ class KanbanCard(QFrame):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_card_context_menu)
         self._drag_start_pos = None
+        self._zoom_level = 1.0
 
         self._setup_ui()
         self._apply_style()
@@ -295,6 +296,7 @@ class KanbanLane(QWidget):
 
     def apply_zoom(self, zoom_level):
         """缩放甬道内的字体和间距"""
+        self._zoom_level = zoom_level
         # 标题字体
         header_size = max(int(12 * zoom_level), 7)
         self.header_label.setFont(QFont("Microsoft YaHei", header_size, QFont.Bold))
@@ -428,6 +430,9 @@ class KanbanLane(QWidget):
 
         self.count_label.setText(str(len(events)))
         self.cards_layout.addStretch()
+        # 重新应用缩放
+        if self._zoom_level != 1.0:
+            self.apply_zoom(self._zoom_level)
 
     # ---- 拖放 ----
 
