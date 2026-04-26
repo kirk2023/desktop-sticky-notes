@@ -90,6 +90,17 @@ class GanttChartWidget(QWidget):
         if max_date is None:
             max_date = min_date + timedelta(days=1)
 
+        # 将看板 deadline 纳入日期范围
+        if self.deadline:
+            try:
+                dl = datetime.strptime(self.deadline, "%Y-%m-%d").date()
+                if dl > max_date:
+                    max_date = dl
+                if dl < min_date:
+                    min_date = dl
+            except (ValueError, TypeError):
+                pass
+
         # 前后各留2天余量
         self.start_date = min_date - timedelta(days=2)
         self.end_date = max_date + timedelta(days=2)
