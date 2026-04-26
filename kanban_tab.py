@@ -749,13 +749,24 @@ class NewBoardDialog(QDialog):
         """)
         deadline_layout.addWidget(self.deadline_input, 1)
 
-        self.deadline_cb = QCheckBox("设置截止日期")
-        self.deadline_cb.setFont(QFont("Microsoft YaHei", 11))
-        self.deadline_cb.setStyleSheet("color: #555; background: transparent; border: none;")
-        self.deadline_cb.setChecked(False)
-        self.deadline_cb.toggled.connect(self.deadline_input.setEnabled)
-        self.deadline_input.setEnabled(False)
-        deadline_layout.addWidget(self.deadline_cb)
+        self.clear_deadline_btn = QPushButton("清除")
+        self.clear_deadline_btn.setFixedSize(50, 36)
+        self.clear_deadline_btn.setFont(QFont("Microsoft YaHei", 10))
+        self.clear_deadline_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #ffffff;
+                color: #999;
+                border: 1px solid #dcdde1;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #fef0f0;
+                color: #e74c3c;
+                border-color: #e74c3c;
+            }
+        """)
+        self.clear_deadline_btn.clicked.connect(lambda: self.deadline_input.setDate(QDate.currentDate()))
+        deadline_layout.addWidget(self.clear_deadline_btn)
 
         layout.addLayout(deadline_layout)
 
@@ -855,10 +866,7 @@ class NewBoardDialog(QDialog):
                     self.template_name = tmpl_name
                     break
 
-        if self.deadline_cb.isChecked():
-            self.deadline = self.deadline_input.date().toString("yyyy-MM-dd")
-        else:
-            self.deadline = ""
+        self.deadline = self.deadline_input.date().toString("yyyy-MM-dd")
 
         self.board_name = name
         self.accept()
@@ -1227,10 +1235,10 @@ class BoardListPage(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        clear_btn = QPushButton("清除")
+        clear_btn = QPushButton("清除日期")
         clear_btn.setFont(QFont("Microsoft YaHei", 10))
         clear_btn.setFixedHeight(32)
-        clear_btn.clicked.connect(dialog.reject)
+        clear_btn.clicked.connect(lambda: (date_input.setDate(QDate.currentDate()), dialog.accept()))
         btn_layout.addWidget(clear_btn)
 
         confirm_btn = QPushButton("确定")
