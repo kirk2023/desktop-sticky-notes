@@ -235,20 +235,15 @@ class KanbanLane(QWidget):
         header_layout.setContentsMargins(12, 0, 12, 0)
 
         self.header_label = QLabel(self.lane_name)
+        self.header_label.setObjectName("titleLabel")
         self.header_label.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
-        self.header_label.setStyleSheet(
-            "color: #ffffff; background: transparent; border: none;"
-        )
         header_layout.addWidget(self.header_label)
         header_layout.addStretch()
 
         # 卡片数量标签
         self.count_label = QLabel("0")
+        self.count_label.setObjectName("countLabel")
         self.count_label.setFont(QFont("Microsoft YaHei", 9))
-        self.count_label.setStyleSheet(
-            "color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.2);"
-            "border: none; border-radius: 10px; padding: 1px 8px;"
-        )
         header_layout.addWidget(self.count_label)
 
         container_layout.addWidget(self.header)
@@ -293,13 +288,6 @@ class KanbanLane(QWidget):
         self.header.customContextMenuRequested.connect(self._show_context_menu)
 
     def _apply_style(self):
-        self.container.setStyleSheet("""
-            #laneContainer {
-                background-color: #ffffff;
-                border: 1px solid #e8e8e8;
-                border-radius: 8px;
-            }
-        """)
         shadow = QGraphicsDropShadowEffect(self.container)
         shadow.setBlurRadius(6)
         shadow.setOffset(1, 2)
@@ -336,24 +324,36 @@ class KanbanLane(QWidget):
         b = int(color[5:7], 16) if len(color) >= 7 else 200
         brightness = (r * 299 + g * 587 + b * 114) / 1000
         text_color = "#ffffff" if brightness < 160 else "#2c3e50"
+        count_bg = "rgba(255,255,255,0.2)" if brightness < 160 else "rgba(0,0,0,0.08)"
+        count_color = "rgba(255,255,255,0.8)" if brightness < 160 else "rgba(0,0,0,0.5)"
 
-        self.header.setStyleSheet(f"""
+        # 统一设置 container 的样式（包含 header 和 label），避免样式被覆盖
+        self.container.setStyleSheet(f"""
+            #laneContainer {{
+                background-color: #ffffff;
+                border: 1px solid #e8e8e8;
+                border-radius: 8px;
+            }}
             #laneHeader {{
                 background-color: {color};
                 border: none;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
             }}
+            #titleLabel {{
+                color: {text_color};
+                background: transparent;
+                border: none;
+                padding: 2px;
+            }}
+            #countLabel {{
+                color: {count_color};
+                background: {count_bg};
+                border: none;
+                border-radius: 10px;
+                padding: 1px 8px;
+            }}
         """)
-        self.header_label.setStyleSheet(
-            f"color: {text_color}; background: transparent; border: none;"
-        )
-        count_bg = "rgba(255,255,255,0.2)" if brightness < 160 else "rgba(0,0,0,0.08)"
-        count_color = "rgba(255,255,255,0.8)" if brightness < 160 else "rgba(0,0,0,0.5)"
-        self.count_label.setStyleSheet(
-            f"color: {count_color}; background: {count_bg};"
-            "border: none; border-radius: 10px; padding: 1px 8px;"
-        )
 
     def _show_context_menu(self, pos):
         menu = QMenu(self)
