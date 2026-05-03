@@ -29,10 +29,9 @@ class RestReminderDialog(QDialog):
 
         # 全屏无边框，置顶
         self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Dialog
         )
         self.setAttribute(Qt.WA_TranslucentBackground, False)
-        self.showFullScreen()
 
         self._setup_ui()
         self._start_countdown()
@@ -106,8 +105,9 @@ class RestReminderDialog(QDialog):
             self._central_widget.setGeometry(self.rect())
 
     def showEvent(self, event):
-        """显示时布局"""
+        """显示时布局并全屏"""
         super().showEvent(event)
+        self.showFullScreen()
         if hasattr(self, '_central_widget'):
             self._central_widget.setGeometry(self.rect())
 
