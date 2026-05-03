@@ -1026,22 +1026,17 @@ class MainWindow(QMainWindow):
         self.rest_bg_path_label.setStyleSheet("color: #7f8c8d; border: none;")
         self.rest_bg_path_label.setFont(QFont("Microsoft YaHei", 9))
         bg_layout.addWidget(self.rest_bg_path_label, 1)
-        bg_select_btn = QPushButton("选择图片")
-        bg_select_btn.setFixedWidth(80)
+        bg_select_btn = QPushButton("选择")
+        bg_select_btn.setFixedWidth(50)
         bg_select_btn.setFont(QFont("Microsoft YaHei", 9))
         bg_select_btn.clicked.connect(self._select_rest_bg_image)
         bg_layout.addWidget(bg_select_btn)
         bg_clear_btn = QPushButton("恢复默认")
-        bg_clear_btn.setFixedWidth(80)
+        bg_clear_btn.setFixedWidth(70)
         bg_clear_btn.setFont(QFont("Microsoft YaHei", 9))
         bg_clear_btn.clicked.connect(self._clear_rest_bg_image)
         bg_layout.addWidget(bg_clear_btn)
         rest_layout.addLayout(bg_layout)
-
-        # 图片尺寸提示
-        bg_tip = QLabel("💡 推荐使用横版图片（16:9 或 3:4），分辨率不低于 1920×1080")
-        bg_tip.setStyleSheet("color: #bdc3c7; font-size: 10px; border: none;")
-        rest_layout.addWidget(bg_tip)
 
         # 加载已保存的背景图片路径
         saved_bg = self.db.get_setting('rest_bg_image_path', '')
@@ -1058,7 +1053,8 @@ class MainWindow(QMainWindow):
         # 提示
         rest_tip = QLabel(
             "💡 开启后，连续计时达到设定间隔将自动弹出休息提醒。\n"
-            "   休息期间无法跳过，倒计时结束后自动恢复计时。")
+            "   休息期间无法跳过，倒计时结束后自动恢复计时。\n"
+            "   自定义图片推荐横版（16:9），分辨率不低于 1920×1080。")
         rest_tip.setStyleSheet(
             "color: #95a5a6; font-size: 11px; border: none; padding: 8px 0;")
         rest_tip.setWordWrap(True)
