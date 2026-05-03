@@ -203,6 +203,7 @@ class RestReminderDialog(QDialog):
         )
         if reply == QMessageBox.Yes:
             self.countdown_timer.stop()
+            self.remaining_seconds = 0  # 允许关闭
             self.rest_finished.emit()
             self.close()
 
