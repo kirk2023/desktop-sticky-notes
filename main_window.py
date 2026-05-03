@@ -509,6 +509,20 @@ class MainWindow(QMainWindow):
             }
         """)
 
+        # 启动时恢复桌面卡片
+        QTimer.singleShot(500, self._restore_sticky_cards)
+
+    def _restore_sticky_cards(self):
+        """启动时恢复之前打开的桌面卡片"""
+        cursor = self.db.conn.cursor()
+        cursor.execute("SELECT event_id FROM card_positions")
+        rows = cursor.fetchall()
+        for row in rows:
+            event_id = row['event_id']
+            event_data = self.db.get_event(event_id)
+            if event_data and event_data.get('status') not in ('archived',):
+                self._create_sticky_card(event_id)
+
     def _setup_event_tab(self):
         """设置事件列表标签页"""
         layout = QVBoxLayout(self.event_tab)
@@ -2278,14 +2292,6 @@ class MainWindow(QMainWindow):
         if not self.db.get_setting('rest_reminder_enabled', False):
             return  # 休息提醒未开启
 
-        enabled = self.db.get_setting('rest_reminder_enabled', False)
-        interval = self.db.get_setting('rest_interval_minutes', 120)
-        timing_cards = [(eid, c) for eid, c in self.sticky_cards.items() if c.is_timing]
-        if timing_cards:
-            eid0 = timing_cards[0][0]
-            elapsed0 = self.db.get_total_elapsed_seconds(eid0)
-            print(f"[休息提醒检测] enabled={enabled}, interval={interval}min, timing_cards={len(timing_cards)}, first_elapsed={elapsed0}s")
-
         # 遍历所有正在计时的卡片，检查是否达到休息间隔
         interval_seconds = int(self.db.get_setting('rest_interval_minutes', 120)) * 60
         for event_id, card in self.sticky_cards.items():
@@ -2296,7 +2302,6 @@ class MainWindow(QMainWindow):
             expected_triggers = int(elapsed // interval_seconds)
             actual_triggers = self._last_rest_trigger_time.get(event_id, 0)
             if expected_triggers > actual_triggers:
-                print(f"[休息提醒] 触发! event_id={event_id}, elapsed={elapsed}s, interval={interval_seconds}s, triggers={expected_triggers}")
                 self._last_rest_trigger_time[event_id] = expected_triggers
                 self._trigger_rest_reminder(event_id)
                 break
@@ -2307,26 +2312,21 @@ class MainWindow(QMainWindow):
         self._rest_reminder_event_id = event_id
 
         # 暂停计时
-        print(f"[休息提醒] 暂停计时 event_id={event_id}")
         try:
             self._on_stop_timer(event_id)
-        except Exception as e:
-            print(f"[休息提醒] 暂停计时出错: {e}")
+        except Exception:
+            pass
 
         # 弹出休息提醒对话框（模态，确保可见）
         rest_duration = int(self.db.get_setting('rest_duration_minutes', 10))
-        print(f"[休息提醒] 创建对话框, rest_duration={rest_duration}分钟")
         try:
             self._rest_dialog = RestReminderDialog(rest_duration, parent=self)
             self._rest_dialog.rest_finished.connect(
                 lambda: self._on_rest_finished(event_id)
             )
             self._rest_dialog.exec_()
-            print(f"[休息提醒] 对话框已关闭")
         except Exception as e:
             print(f"[休息提醒] 显示对话框出错: {e}")
-            import traceback
-            traceback.print_exc()
 
     def _on_rest_finished(self, event_id):
         """休息结束，恢复计时"""
