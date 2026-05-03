@@ -373,6 +373,7 @@ class MainWindow(QMainWindow):
         self.sticky_cards = {}  # event_id -> StickyNoteCard
         self._rest_reminder_active = False  # 休息提醒是否正在显示
         self._rest_reminder_event_id = None  # 休息提醒关联的事件ID
+        self._last_rest_trigger_time = {}  # 记录每个事件上次触发休息时的累计秒数
 
         self.setWindowTitle("📌 桌面便利贴 - 计划计时系统")
         self.setMinimumSize(900, 650)
@@ -2283,7 +2284,11 @@ class MainWindow(QMainWindow):
             if not card.is_timing:
                 continue
             elapsed = self.db.get_total_elapsed_seconds(event_id)
-            if elapsed >= interval_seconds and elapsed - interval_seconds < 1:
+            # 计算应该触发休息的次数
+            expected_triggers = int(elapsed // interval_seconds)
+            actual_triggers = self._last_rest_trigger_time.get(event_id, 0)
+            if expected_triggers > actual_triggers:
+                self._last_rest_trigger_time[event_id] = expected_triggers
                 self._trigger_rest_reminder(event_id)
                 break
 
