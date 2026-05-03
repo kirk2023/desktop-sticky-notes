@@ -1019,6 +1019,36 @@ class MainWindow(QMainWindow):
         duration_layout.addStretch()
         rest_layout.addLayout(duration_layout)
 
+        # 自定义背景图片
+        bg_layout = QHBoxLayout()
+        bg_layout.addWidget(QLabel("休息图片："))
+        self.rest_bg_path_label = QLabel("(默认猫咪)")
+        self.rest_bg_path_label.setStyleSheet("color: #7f8c8d; border: none;")
+        self.rest_bg_path_label.setFont(QFont("Microsoft YaHei", 9))
+        bg_layout.addWidget(self.rest_bg_path_label, 1)
+        bg_select_btn = QPushButton("选择图片")
+        bg_select_btn.setFixedWidth(80)
+        bg_select_btn.setFont(QFont("Microsoft YaHei", 9))
+        bg_select_btn.clicked.connect(self._select_rest_bg_image)
+        bg_layout.addWidget(bg_select_btn)
+        bg_clear_btn = QPushButton("恢复默认")
+        bg_clear_btn.setFixedWidth(80)
+        bg_clear_btn.setFont(QFont("Microsoft YaHei", 9))
+        bg_clear_btn.clicked.connect(self._clear_rest_bg_image)
+        bg_layout.addWidget(bg_clear_btn)
+        rest_layout.addLayout(bg_layout)
+
+        # 图片尺寸提示
+        bg_tip = QLabel("💡 推荐使用横版图片（16:9 或 3:4），分辨率不低于 1920×1080")
+        bg_tip.setStyleSheet("color: #bdc3c7; font-size: 10px; border: none;")
+        rest_layout.addWidget(bg_tip)
+
+        # 加载已保存的背景图片路径
+        saved_bg = self.db.get_setting('rest_bg_image_path', '')
+        if saved_bg:
+            self.rest_bg_path_label.setText(saved_bg)
+            self.rest_bg_path_label.setToolTip(saved_bg)
+
         # 保存按钮
         save_rest_btn = QPushButton("保存休息提醒设置")
         save_rest_btn.setObjectName("settingsBtn")
@@ -1169,6 +1199,31 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "设置已保存", "休息提醒设置已保存。")
         except Exception as e:
             QMessageBox.warning(self, "保存失败", f"保存设置时出错：\n{e}")
+
+    def _select_rest_bg_image(self):
+        """选择休息提醒背景图片"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择休息提醒图片", "",
+            "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;所有文件 (*)")
+        if file_path:
+            # 验证图片是否可加载
+            pixmap = QPixmap(file_path)
+            if pixmap.isNull():
+                QMessageBox.warning(self, "图片无效", "无法加载该图片，请选择其他文件。")
+                return
+            # 显示图片信息
+            info = os.path.basename(file_path)
+            info += f" ({pixmap.width()}×{pixmap.height()})"
+            self.rest_bg_path_label.setText(info)
+            self.rest_bg_path_label.setToolTip(file_path)
+            # 保存到数据库
+            self.db.set_setting('rest_bg_image_path', file_path)
+
+    def _clear_rest_bg_image(self):
+        """恢复默认背景图片"""
+        self.rest_bg_path_label.setText("(默认猫咪)")
+        self.rest_bg_path_label.setToolTip("")
+        self.db.set_setting('rest_bg_image_path', '')
 
     def _setup_tray_icon(self):
         """设置系统托盘图标"""
@@ -2319,8 +2374,10 @@ class MainWindow(QMainWindow):
 
         # 弹出休息提醒对话框（模态，确保可见）
         rest_duration = int(self.db.get_setting('rest_duration_minutes', 10))
+        custom_bg = self.db.get_setting('rest_bg_image_path', '')
         try:
-            self._rest_dialog = RestReminderDialog(rest_duration, parent=self)
+            self._rest_dialog = RestReminderDialog(
+                rest_duration, custom_bg_path=custom_bg, parent=self)
             self._rest_dialog.rest_finished.connect(
                 lambda: self._on_rest_finished(event_id)
             )

@@ -23,10 +23,11 @@ class RestReminderDialog(QDialog):
 
     rest_finished = pyqtSignal()  # 休息结束信号
 
-    def __init__(self, rest_duration_minutes, parent=None):
+    def __init__(self, rest_duration_minutes, custom_bg_path=None, parent=None):
         super().__init__(parent)
         self.rest_duration_minutes = rest_duration_minutes
         self.remaining_seconds = rest_duration_minutes * 60
+        self.custom_bg_path = custom_bg_path  # 用户自定义背景图片路径
 
         # 全屏无边框，置顶
         self.setWindowFlags(
@@ -81,9 +82,14 @@ class RestReminderDialog(QDialog):
         cat_label = QLabel()
         cat_label.setAlignment(Qt.AlignCenter)
         cat_label.setStyleSheet("background: transparent; border: none;")
-        cat_path = get_resource_path("rest_cat.png")
-        if os.path.exists(cat_path):
-            pixmap = QPixmap(cat_path)
+        # 优先使用用户自定义图片，否则用默认猫咪
+        img_path = None
+        if self.custom_bg_path and os.path.exists(self.custom_bg_path):
+            img_path = self.custom_bg_path
+        else:
+            img_path = get_resource_path("rest_cat.png")
+        if img_path and os.path.exists(img_path):
+            pixmap = QPixmap(img_path)
             if not pixmap.isNull():
                 cat_label.setPixmap(pixmap)
                 cat_label.setScaledContents(False)
@@ -131,13 +137,18 @@ class RestReminderDialog(QDialog):
         self._resize_cat()
 
     def _resize_cat(self):
-        """按屏幕宽度缩放猫咪图片，保持宽高比"""
+        """按屏幕宽度缩放图片，保持宽高比"""
         if not hasattr(self, '_cat_label'):
             return
-        cat_path = get_resource_path("rest_cat.png")
-        if not os.path.exists(cat_path):
+        # 优先使用自定义图片
+        img_path = None
+        if self.custom_bg_path and os.path.exists(self.custom_bg_path):
+            img_path = self.custom_bg_path
+        else:
+            img_path = get_resource_path("rest_cat.png")
+        if not img_path or not os.path.exists(img_path):
             return
-        pixmap = QPixmap(cat_path)
+        pixmap = QPixmap(img_path)
         if pixmap.isNull():
             return
         # 猫咪占屏幕宽度约70%，高度自适应
