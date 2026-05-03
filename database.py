@@ -522,7 +522,7 @@ class Database:
         return total
 
     def get_total_elapsed_seconds(self, event_id):
-        """获取事件的所有计时会话的总秒数"""
+        """获取事件的所有计时会话的总秒数（含正在进行的会话）"""
         cursor = self.conn.cursor()
         cursor.execute("""
             SELECT COALESCE(SUM(actual_duration_seconds), 0) as total
@@ -535,7 +535,24 @@ class Database:
             )
         """, (event_id, event_id))
         row = cursor.fetchone()
-        return row['total'] if row else 0
+        total = row['total'] if row else 0
+
+        # 加上正在进行的会话从 actual_start 到现在的时间
+        cursor.execute("""
+            SELECT actual_start FROM timer_records
+            WHERE event_id = ? AND actual_end IS NULL
+            ORDER BY id DESC LIMIT 1
+        """, (event_id,))
+        active_row = cursor.fetchone()
+        if active_row and active_row['actual_start']:
+            try:
+                start_dt = datetime.strptime(active_row['actual_start'], "%Y-%m-%d %H:%M:%S")
+                active_seconds = int((datetime.now() - start_dt).total_seconds())
+                total += max(active_seconds, 0)
+            except (ValueError, TypeError):
+                pass
+
+        return total
 
     def get_current_session_info(self, event_id):
         """
