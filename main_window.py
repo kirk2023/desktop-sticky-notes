@@ -2278,6 +2278,14 @@ class MainWindow(QMainWindow):
         if not self.db.get_setting('rest_reminder_enabled', False):
             return  # 休息提醒未开启
 
+        enabled = self.db.get_setting('rest_reminder_enabled', False)
+        interval = self.db.get_setting('rest_interval_minutes', 120)
+        timing_cards = [(eid, c) for eid, c in self.sticky_cards.items() if c.is_timing]
+        if timing_cards:
+            eid0 = timing_cards[0][0]
+            elapsed0 = self.db.get_total_elapsed_seconds(eid0)
+            print(f"[休息提醒检测] enabled={enabled}, interval={interval}min, timing_cards={len(timing_cards)}, first_elapsed={elapsed0}s")
+
         # 遍历所有正在计时的卡片，检查是否达到休息间隔
         interval_seconds = int(self.db.get_setting('rest_interval_minutes', 120)) * 60
         for event_id, card in self.sticky_cards.items():
@@ -2288,6 +2296,7 @@ class MainWindow(QMainWindow):
             expected_triggers = int(elapsed // interval_seconds)
             actual_triggers = self._last_rest_trigger_time.get(event_id, 0)
             if expected_triggers > actual_triggers:
+                print(f"[休息提醒] 触发! event_id={event_id}, elapsed={elapsed}s, interval={interval_seconds}s, triggers={expected_triggers}")
                 self._last_rest_trigger_time[event_id] = expected_triggers
                 self._trigger_rest_reminder(event_id)
                 break
