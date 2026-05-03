@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 # 数据库版本号（表结构变更时递增）
-DB_VERSION = 10
+DB_VERSION = 11
 
 # 配置文件路径
 CONFIG_FILE = os.path.join(
@@ -194,6 +194,18 @@ class Database:
                 except Exception:
                     pass
 
+            # v10 -> v11: 新增 app_settings 通用设置表
+            if current_version < 11:
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS app_settings (
+                            key TEXT PRIMARY KEY,
+                            value TEXT
+                        )
+                    """)
+                except Exception:
+                    pass
+
             # 更新版本号
             cursor.execute("DELETE FROM _db_version")
             cursor.execute("INSERT INTO _db_version (version) VALUES (?)", (DB_VERSION,))
@@ -303,6 +315,14 @@ class Database:
                 name TEXT NOT NULL,
                 sort_order INTEGER DEFAULT 0,
                 color TEXT DEFAULT '#ecf0f1'
+            )
+        """)
+
+        # 通用应用设置表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
             )
         """)
 
@@ -662,6 +682,33 @@ class Database:
         """更新事项的完成日期"""
         cursor = self.conn.cursor()
         cursor.execute("UPDATE events SET completed_at = ? WHERE id = ?", (completed_at, event_id))
+        self.conn.commit()
+
+    def get_setting(self, key, default=None):
+        """获取应用设置值"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        if row is None:
+            return default
+        value = row['value']
+        # 尝试类型转换
+        if isinstance(default, bool):
+            return value.lower() in ('true', '1', 'yes')
+        if isinstance(default, int):
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+        return value
+
+    def set_setting(self, key, value):
+        """设置应用设置值"""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)",
+            (key, str(value))
+        )
         self.conn.commit()
 
     def close(self):

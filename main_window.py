@@ -22,7 +22,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QAction, QGroupBox, QSplitter, QHeaderView,
                               QTableWidget, QTableWidgetItem, QAbstractItemView,
                               QProgressBar, QFrame, QDateEdit, QSizePolicy,
-                              QFileDialog, QGridLayout)
+                              QFileDialog, QGridLayout, QCheckBox)
 from PyQt5.QtCore import Qt, QTimer, QDateTime, QSize, pyqtSignal, QRectF
 from PyQt5.QtGui import QIcon, QFont, QColor, QPixmap, QPainter, QBrush, QPen
 
@@ -30,6 +30,7 @@ from database import Database, load_config, save_config
 from sticky_note import StickyNoteCard
 from notification import NotificationManager, send_windows_notification
 from models import Event
+from rest_reminder import RestReminderDialog
 
 
 class EventDialog(QDialog):
@@ -370,6 +371,8 @@ class MainWindow(QMainWindow):
         self.db = Database()
         self.notification_mgr = NotificationManager()
         self.sticky_cards = {}  # event_id -> StickyNoteCard
+        self._rest_reminder_active = False  # 休息提醒是否正在显示
+        self._rest_reminder_event_id = None  # 休息提醒关联的事件ID
 
         self.setWindowTitle("📌 桌面便利贴 - 计划计时系统")
         self.setMinimumSize(900, 650)
@@ -961,6 +964,63 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(storage_group)
 
+        # 休息提醒设置
+        rest_group = QGroupBox("🐱 休息提醒")
+        rest_group.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
+        rest_layout = QVBoxLayout(rest_group)
+
+        # 开启休息提醒
+        self.rest_reminder_check = QCheckBox("开启休息提醒")
+        self.rest_reminder_check.setFont(QFont("Microsoft YaHei", 10))
+        self.rest_reminder_check.setChecked(
+            self.db.get_setting('rest_reminder_enabled', False))
+        rest_layout.addWidget(self.rest_reminder_check)
+
+        # 工作间隔设置
+        interval_layout = QHBoxLayout()
+        interval_layout.addWidget(QLabel("工作间隔："))
+        self.rest_interval_spin = QSpinBox()
+        self.rest_interval_spin.setRange(30, 480)
+        self.rest_interval_spin.setSuffix(" 分钟")
+        self.rest_interval_spin.setValue(
+            int(self.db.get_setting('rest_interval_minutes', 120)))
+        self.rest_interval_spin.setFont(QFont("Microsoft YaHei", 10))
+        interval_layout.addWidget(self.rest_interval_spin)
+        interval_layout.addWidget(QLabel("（30~480分钟）"))
+        interval_layout.addStretch()
+        rest_layout.addLayout(interval_layout)
+
+        # 休息时长设置
+        duration_layout = QHBoxLayout()
+        duration_layout.addWidget(QLabel("休息时长："))
+        self.rest_duration_spin = QSpinBox()
+        self.rest_duration_spin.setRange(1, 60)
+        self.rest_duration_spin.setSuffix(" 分钟")
+        self.rest_duration_spin.setValue(
+            int(self.db.get_setting('rest_duration_minutes', 10)))
+        self.rest_duration_spin.setFont(QFont("Microsoft YaHei", 10))
+        duration_layout.addWidget(self.rest_duration_spin)
+        duration_layout.addWidget(QLabel("（1~60分钟）"))
+        duration_layout.addStretch()
+        rest_layout.addLayout(duration_layout)
+
+        # 保存按钮
+        save_rest_btn = QPushButton("保存休息提醒设置")
+        save_rest_btn.setObjectName("settingsBtn")
+        save_rest_btn.clicked.connect(self._save_rest_reminder_settings)
+        rest_layout.addWidget(save_rest_btn)
+
+        # 提示
+        rest_tip = QLabel(
+            "💡 开启后，连续计时达到设定间隔将自动弹出休息提醒。\n"
+            "   休息期间无法跳过，倒计时结束后自动恢复计时。")
+        rest_tip.setStyleSheet(
+            "color: #95a5a6; font-size: 11px; border: none; padding: 8px 0;")
+        rest_tip.setWordWrap(True)
+        rest_layout.addWidget(rest_tip)
+
+        layout.addWidget(rest_group)
+
         # 关于信息
         about_group = QGroupBox("ℹ️ 关于")
         about_group.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
@@ -1076,6 +1136,22 @@ class MainWindow(QMainWindow):
             self.db_path_label.setText(default_path)
             QMessageBox.information(
                 self, "设置已保存", "已恢复默认存储位置。\n\n请重启应用以使更改生效。")
+        except Exception as e:
+            QMessageBox.warning(self, "保存失败", f"保存设置时出错：\n{e}")
+
+    def _save_rest_reminder_settings(self):
+        """保存休息提醒设置"""
+        try:
+            self.db.set_setting(
+                'rest_reminder_enabled',
+                self.rest_reminder_check.isChecked())
+            self.db.set_setting(
+                'rest_interval_minutes',
+                self.rest_interval_spin.value())
+            self.db.set_setting(
+                'rest_duration_minutes',
+                self.rest_duration_spin.value())
+            QMessageBox.information(self, "设置已保存", "休息提醒设置已保存。")
         except Exception as e:
             QMessageBox.warning(self, "保存失败", f"保存设置时出错：\n{e}")
 
@@ -2193,6 +2269,47 @@ class MainWindow(QMainWindow):
         timing_count = sum(1 for c in self.sticky_cards.values() if c.is_timing)
         self.statusBar().showMessage(
             f"🕐 {now}  |  📌 桌面卡片: {active_count}  |  ▶️ 计时中: {timing_count}")
+
+        # 休息提醒检测
+        if self._rest_reminder_active:
+            return  # 休息提醒正在显示，不重复触发
+
+        if not self.db.get_setting('rest_reminder_enabled', False):
+            return  # 休息提醒未开启
+
+        # 遍历所有正在计时的卡片，检查是否达到休息间隔
+        interval_seconds = int(self.db.get_setting('rest_interval_minutes', 120)) * 60
+        for event_id, card in self.sticky_cards.items():
+            if not card.is_timing:
+                continue
+            elapsed = self.db.get_total_elapsed_seconds(event_id)
+            if elapsed >= interval_seconds and elapsed - interval_seconds < 1:
+                self._trigger_rest_reminder(event_id)
+                break
+
+    def _trigger_rest_reminder(self, event_id):
+        """触发休息提醒"""
+        self._rest_reminder_active = True
+        self._rest_reminder_event_id = event_id
+
+        # 暂停计时
+        self._on_stop_timer(event_id)
+
+        # 弹出休息提醒对话框
+        rest_duration = int(self.db.get_setting('rest_duration_minutes', 10))
+        self._rest_dialog = RestReminderDialog(rest_duration, parent=self)
+        self._rest_dialog.rest_finished.connect(
+            lambda: self._on_rest_finished(event_id)
+        )
+        self._rest_dialog.show()
+
+    def _on_rest_finished(self, event_id):
+        """休息结束，恢复计时"""
+        self._rest_reminder_active = False
+        self._rest_reminder_event_id = None
+
+        # 恢复计时
+        self._on_start_timer(event_id)
 
     # ==================== 系统托盘 ====================
 
