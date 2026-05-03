@@ -2307,15 +2307,28 @@ class MainWindow(QMainWindow):
         self._rest_reminder_event_id = event_id
 
         # 暂停计时
-        self._on_stop_timer(event_id)
+        print(f"[休息提醒] 暂停计时 event_id={event_id}")
+        try:
+            self._on_stop_timer(event_id)
+        except Exception as e:
+            print(f"[休息提醒] 暂停计时出错: {e}")
 
         # 弹出休息提醒对话框
         rest_duration = int(self.db.get_setting('rest_duration_minutes', 10))
-        self._rest_dialog = RestReminderDialog(rest_duration, parent=self)
-        self._rest_dialog.rest_finished.connect(
-            lambda: self._on_rest_finished(event_id)
-        )
-        self._rest_dialog.show()
+        print(f"[休息提醒] 创建对话框, rest_duration={rest_duration}分钟")
+        try:
+            self._rest_dialog = RestReminderDialog(rest_duration, parent=self)
+            self._rest_dialog.rest_finished.connect(
+                lambda: self._on_rest_finished(event_id)
+            )
+            self._rest_dialog.show()
+            self._rest_dialog.raise_()
+            self._rest_dialog.activateWindow()
+            print(f"[休息提醒] 对话框已显示")
+        except Exception as e:
+            print(f"[休息提醒] 显示对话框出错: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _on_rest_finished(self, event_id):
         """休息结束，恢复计时"""
