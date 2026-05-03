@@ -5,7 +5,8 @@
 import os
 import sys
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QWidget
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+                              QWidget, QPushButton, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont, QPixmap, QPainter, QLinearGradient, QColor
 
@@ -40,51 +41,123 @@ class RestReminderDialog(QDialog):
         """设置界面"""
         # 中央容器
         central = QWidget(self)
-        layout = QVBoxLayout(central)
-        layout.setAlignment(Qt.AlignCenter)
-        layout.setSpacing(20)
+        main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # 猫咪图片
+        # ---- 顶部区域：倒计时 ----
+        top_area = QWidget()
+        top_layout = QVBoxLayout(top_area)
+        top_layout.setContentsMargins(0, 40, 0, 10)
+        top_layout.setAlignment(Qt.AlignCenter)
+        top_layout.setSpacing(8)
+
+        title_label = QLabel("倒计时")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Microsoft YaHei", 20))
+        title_label.setStyleSheet("color: #5a5a7a; background: transparent; border: none;")
+        top_layout.addWidget(title_label)
+
+        self.countdown_label = QLabel()
+        self.countdown_label.setAlignment(Qt.AlignCenter)
+        self.countdown_label.setFont(QFont("Microsoft YaHei", 72, QFont.Bold))
+        self.countdown_label.setStyleSheet("color: #3a3a5a; background: transparent; border: none;")
+        self._update_countdown_text()
+        top_layout.addWidget(self.countdown_label)
+
+        tip_label = QLabel("休息一下吧~ 离开屏幕，放松眼睛和身体")
+        tip_label.setAlignment(Qt.AlignCenter)
+        tip_label.setFont(QFont("Microsoft YaHei", 14))
+        tip_label.setStyleSheet("color: #8888aa; background: transparent; border: none;")
+        top_layout.addWidget(tip_label)
+
+        main_layout.addWidget(top_area, 1)
+
+        # ---- 中间区域：猫咪横幅 ----
+        cat_container = QWidget()
+        cat_layout = QHBoxLayout(cat_container)
+        cat_layout.setContentsMargins(40, 0, 40, 0)
+
         cat_label = QLabel()
         cat_label.setAlignment(Qt.AlignCenter)
+        cat_label.setStyleSheet("background: transparent; border: none;")
         cat_path = get_resource_path("rest_cat.png")
         if os.path.exists(cat_path):
             pixmap = QPixmap(cat_path)
-            # 保持宽高比，占屏幕约45%高度
-            screen_height = self.height()
-            target_height = int(screen_height * 0.45)
-            if pixmap.height() > 0:
-                scaled = pixmap.scaledToHeight(
-                    target_height, Qt.SmoothTransformation
-                )
-                cat_label.setPixmap(scaled)
-        layout.addWidget(cat_label)
+            if not pixmap.isNull():
+                cat_label.setPixmap(pixmap)
+                cat_label.setScaledContents(False)
+        cat_layout.addWidget(cat_label)
 
-        # 倒计时标签
-        self.countdown_label = QLabel()
-        self.countdown_label.setAlignment(Qt.AlignCenter)
-        self.countdown_label.setFont(
-            QFont("Microsoft YaHei", 48, QFont.Bold)
-        )
-        self.countdown_label.setStyleSheet("color: #4a4a6a;")
-        self._update_countdown_text()
-        layout.addWidget(self.countdown_label)
+        main_layout.addWidget(cat_container, 5)
 
-        # 提示文字
-        tip_label = QLabel("休息一下吧~")
-        tip_label.setAlignment(Qt.AlignCenter)
-        tip_label.setFont(QFont("Microsoft YaHei", 18))
-        tip_label.setStyleSheet("color: #7a7a9a;")
-        layout.addWidget(tip_label)
+        # ---- 底部区域：跳过按钮 ----
+        bottom_area = QWidget()
+        bottom_layout = QVBoxLayout(bottom_area)
+        bottom_layout.setContentsMargins(0, 10, 0, 40)
+        bottom_layout.setAlignment(Qt.AlignCenter)
 
-        # 底部提示
-        bottom_label = QLabel("休息期间请离开屏幕，放松眼睛和身体")
-        bottom_label.setAlignment(Qt.AlignCenter)
-        bottom_label.setFont(QFont("Microsoft YaHei", 12))
-        bottom_label.setStyleSheet("color: #aaaacc;")
-        layout.addWidget(bottom_label)
+        self.skip_btn = QPushButton("提前结束休息")
+        self.skip_btn.setFont(QFont("Microsoft YaHei", 12))
+        self.skip_btn.setFixedSize(200, 44)
+        self.skip_btn.setCursor(Qt.PointingHandCursor)
+        self.skip_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 255, 255, 0.6);
+                color: #8888aa;
+                border: 1px solid rgba(150, 150, 180, 0.4);
+                border-radius: 22px;
+                padding: 0 24px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.9);
+                color: #5a5a7a;
+                border-color: #aaaacc;
+            }
+        """)
+        self.skip_btn.clicked.connect(self._on_skip_clicked)
+        bottom_layout.addWidget(self.skip_btn)
+
+        main_layout.addWidget(bottom_area, 1)
 
         self._central_widget = central
+        self._cat_label = cat_label
+
+    def resizeEvent(self, event):
+        """窗口大小变化时重新布局和缩放猫咪"""
+        super().resizeEvent(event)
+        if hasattr(self, '_central_widget'):
+            self._central_widget.setGeometry(self.rect())
+        self._resize_cat()
+
+    def _resize_cat(self):
+        """按屏幕宽度缩放猫咪图片，保持宽高比"""
+        if not hasattr(self, '_cat_label'):
+            return
+        cat_path = get_resource_path("rest_cat.png")
+        if not os.path.exists(cat_path):
+            return
+        pixmap = QPixmap(cat_path)
+        if pixmap.isNull():
+            return
+        # 猫咪占屏幕宽度约70%，高度自适应
+        screen_width = self.width()
+        target_width = int(screen_width * 0.7)
+        if pixmap.width() > 0:
+            scaled = pixmap.scaledToWidth(
+                target_width, Qt.SmoothTransformation
+            )
+            self._cat_label.setPixmap(scaled)
+            self._cat_label.setFixedSize(scaled.size())
+
+    def showEvent(self, event):
+        """显示时布局并全屏"""
+        super().showEvent(event)
+        self.showFullScreen()
+        if hasattr(self, '_central_widget'):
+            self._central_widget.setGeometry(self.rect())
+        # 延迟缩放猫咪（确保窗口尺寸已确定）
+        QTimer.singleShot(100, self._resize_cat)
 
     def paintEvent(self, event):
         """绘制渐变背景"""
@@ -97,19 +170,6 @@ class RestReminderDialog(QDialog):
         gradient.setColorAt(1, QColor("#f3e8ff"))
         painter.fillRect(self.rect(), gradient)
         painter.end()
-
-    def resizeEvent(self, event):
-        """窗口大小变化时重新布局"""
-        super().resizeEvent(event)
-        if hasattr(self, '_central_widget'):
-            self._central_widget.setGeometry(self.rect())
-
-    def showEvent(self, event):
-        """显示时布局并全屏"""
-        super().showEvent(event)
-        self.showFullScreen()
-        if hasattr(self, '_central_widget'):
-            self._central_widget.setGeometry(self.rect())
 
     def _start_countdown(self):
         """启动倒计时"""
@@ -131,20 +191,30 @@ class RestReminderDialog(QDialog):
         """更新倒计时显示文本"""
         minutes = self.remaining_seconds // 60
         seconds = self.remaining_seconds % 60
-        self.countdown_label.setText(
-            f"休息还剩 {minutes:02d}:{seconds:02d}"
+        self.countdown_label.setText(f"{minutes:02d}:{seconds:02d}")
+
+    def _on_skip_clicked(self):
+        """跳过按钮点击 - 二次确认"""
+        reply = QMessageBox.question(
+            self, "提前结束休息",
+            "休息时间还没到哦，确定要提前结束吗？\n身体才是革命的本钱！",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
         )
+        if reply == QMessageBox.Yes:
+            self.countdown_timer.stop()
+            self.rest_finished.emit()
+            self.close()
 
     def keyPressEvent(self, event):
-        """禁止通过按键关闭"""
-        # ESC键不关闭
+        """ESC键不关闭"""
         if event.key() == Qt.Key_Escape:
             event.ignore()
             return
         super().keyPressEvent(event)
 
     def closeEvent(self, event):
-        """禁止手动关闭（仅允许倒计时结束自动关闭）"""
+        """倒计时未结束时禁止手动关闭"""
         if self.remaining_seconds > 0:
             event.ignore()
             return
