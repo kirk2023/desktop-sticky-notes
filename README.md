@@ -52,6 +52,15 @@
 - 支持拖拽移动和边缘缩放
 - 📌 置顶/取消置顶切换
 - Pin 切换后自动保持尺寸和位置
+- **启动时自动恢复**上次打开的桌面卡片（含计时状态）
+
+### 猫咪休息提醒 🐱 🆕
+- 连续计时达到设定间隔后，全屏弹出休息提醒遮罩
+- **自定义休息图片**：设置页可选择任意图片作为休息背景
+- 倒计时显示，支持提前结束（需二次确认）
+- 休息结束自动恢复事项计时
+- 可配置工作间隔（30~480分钟）和休息时长（1~60分钟）
+- 默认关闭，需在设置页手动开启
 
 ### 系统托盘
 - 最小化到系统托盘
@@ -102,12 +111,14 @@ desktop-sticky_notes/
 ├── kanban_tab.py        # 看板模块（多看板/甬道/卡片）
 ├── gantt_tab.py         # 甘特图模块（时间轴/事件条）
 ├── sticky_note.py       # 桌面便利贴（悬浮卡片）
+├── rest_reminder.py     # 休息提醒（全屏遮罩+倒计时）
 ├── notification.py      # 通知管理（系统托盘/提醒）
 ├── models.py            # 数据模型
 ├── build_exe.py         # 打包脚本
 ├── requirements.txt     # 依赖列表
 ├── logo.png             # 应用图标
 ├── logo.ico             # Windows 图标
+├── rest_cat.png         # 休息提醒默认猫咪图片
 └── README.md            # 项目说明
 ```
 
@@ -125,6 +136,7 @@ desktop-sticky_notes/
 | `kanban_lanes` | 甬道（名称/颜色/所属看板） |
 | `kanban_lane_items` | 甬道-事件关联 |
 | `card_positions` | 桌面卡片位置和尺寸 |
+| `app_settings` | 应用设置（key-value，如休息提醒配置） |
 
 ## 许可证
 
