@@ -571,10 +571,18 @@ class Database:
         """, (event_id,))
         record = cursor.fetchone()
         if record:
+            # 累计之前所有已完成会话的时长
+            cursor.execute("""
+                SELECT COALESCE(SUM(actual_duration_seconds), 0) as total
+                FROM timer_records
+                WHERE event_id = ? AND actual_end IS NOT NULL
+            """, (event_id,))
+            prev_row = cursor.fetchone()
+            prev_accumulated = prev_row['total'] if prev_row else 0
             return {
                 'record_id': record['id'],
                 'actual_start': record['actual_start'],
-                'accumulated_seconds': record['actual_duration_seconds'] or 0
+                'accumulated_seconds': (record['actual_duration_seconds'] or 0) + prev_accumulated
             }
         return None
 

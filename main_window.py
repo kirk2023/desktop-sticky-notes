@@ -522,6 +522,12 @@ class MainWindow(QMainWindow):
             event_data = self.db.get_event(event_id)
             if event_data and event_data.get('status') not in ('archived',):
                 self._create_sticky_card(event_id)
+                # 初始化休息提醒触发计数，避免启动后立刻触发
+                if self.db.get_setting('rest_reminder_enabled', False):
+                    elapsed = self.db.get_total_elapsed_seconds(event_id)
+                    interval = int(self.db.get_setting('rest_interval_minutes', 120)) * 60
+                    if interval > 0:
+                        self._last_rest_trigger_time[event_id] = int(elapsed // interval)
 
     def _setup_event_tab(self):
         """设置事件列表标签页"""
@@ -935,7 +941,18 @@ class MainWindow(QMainWindow):
 
     def _setup_settings_tab(self):
         """设置标签页"""
-        layout = QVBoxLayout(self.settings_tab)
+        outer_layout = QVBoxLayout(self.settings_tab)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        # 滚动区域
+        from PyQt5.QtWidgets import QScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #f0f2f5; }")
+
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(16, 16, 16, 16)
 
         # 数据存储设置
@@ -1074,6 +1091,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(about_group)
 
         layout.addStretch()
+
+        scroll.setWidget(scroll_content)
+        outer_layout.addWidget(scroll)
 
         self.settings_tab.setStyleSheet("""
             QGroupBox {
