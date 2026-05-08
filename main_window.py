@@ -1364,8 +1364,11 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "提示", "请输入事项标题！")
                 return
             # 创建新事件
-            new_id = self.db.create_event(**data)
+            new_id = self.db.add_event(**data)
             self._refresh_event_list()
+            # 同步刷新看板
+            if hasattr(self, 'kanban_tab'):
+                self.kanban_tab.refresh()
             self.statusBar().showMessage(f"✅ 已复制事项: {data['title']}", 3000)
 
     def _delete_event(self):
