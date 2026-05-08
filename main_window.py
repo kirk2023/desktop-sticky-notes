@@ -1630,13 +1630,28 @@ class MainWindow(QMainWindow):
             # 间隔
             s3 = QLabel(""); s3.setFixedWidth(8); s3.setStyleSheet("border:none;"); row.addWidget(s3)
 
-            # 时长（固定宽度+高度）
+            # 计划时长（固定宽度+高度）
             dur_label = QLabel(f"⏱ {duration_text}")
             dur_label.setFixedSize(60, 22)
             dur_label.setAlignment(Qt.AlignCenter)
             dur_label.setStyleSheet(
                 "color: #555; font-size: 10px; border: none; background: transparent; margin: 0px; padding: 0px;")
             row.addWidget(dur_label)
+
+            # 已发生时长（从数据库获取）
+            elapsed = self.db.get_total_elapsed_seconds(event['id'])
+            if elapsed > 0:
+                elapsed_min = elapsed // 60
+                if elapsed_min >= 60:
+                    elapsed_text = f"{elapsed_min // 60}h{elapsed_min % 60}m"
+                else:
+                    elapsed_text = f"{elapsed_min}m"
+                elapsed_label = QLabel(f"✓ {elapsed_text}")
+                elapsed_label.setFixedSize(60, 22)
+                elapsed_label.setAlignment(Qt.AlignCenter)
+                elapsed_label.setStyleSheet(
+                    "color: #27ae60; font-size: 10px; border: none; background: transparent; margin: 0px; padding: 0px;")
+                row.addWidget(elapsed_label)
 
             # 间隔
             s4 = QLabel(""); s4.setFixedWidth(8); s4.setStyleSheet("border:none;"); row.addWidget(s4)

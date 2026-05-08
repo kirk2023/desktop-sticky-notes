@@ -65,26 +65,41 @@ class KanbanCard(QFrame):
         self.title_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
         content_layout.addWidget(self.title_label)
 
-        # 计划时间
+        # 计划时间和已发生时长
         duration = self.event_data.get('planned_duration_minutes', 30)
         planned_start = self.event_data.get('planned_start', '')
-        # 时长显示：>=60分钟用小时，否则用分钟
+        # 计划时长显示
         if duration >= 60 and duration % 60 == 0:
             duration_str = f"{duration // 60}小时"
         elif duration >= 60:
             duration_str = f"{duration / 60:.1f}小时"
         else:
             duration_str = f"{duration}分钟"
+        # 已发生时长（从event_data获取）
+        elapsed = self.event_data.get('actual_duration_seconds', 0)
+        if elapsed > 0:
+            elapsed_min = elapsed // 60
+            if elapsed_min >= 60:
+                elapsed_str = f"{elapsed_min // 60}小时{elapsed_min % 60}分"
+            else:
+                elapsed_str = f"{elapsed_min}分钟"
+            elapsed_text = f"已用 {elapsed_str}"
+        else:
+            elapsed_text = ""
+        # 组合显示
         if planned_start:
             try:
                 dt = QDateTime.fromString(planned_start, "yyyy-MM-dd HH:mm")
                 time_str = dt.toString("HH:mm")
                 date_str = dt.toString("MM/dd")
-                time_text = f"{date_str} {time_str} | {duration_str}"
+                if elapsed_text:
+                    time_text = f"{date_str} {time_str} | 计划{duration_str} | {elapsed_text}"
+                else:
+                    time_text = f"{date_str} {time_str} | 计划{duration_str}"
             except Exception:
-                time_text = f"计划 {duration_str}"
+                time_text = f"计划{duration_str}" + (f" | {elapsed_text}" if elapsed_text else "")
         else:
-            time_text = f"计划 {duration_str}"
+            time_text = f"计划{duration_str}" + (f" | {elapsed_text}" if elapsed_text else "")
 
         self.time_label = QLabel(time_text)
         self.time_label.setFont(QFont("Microsoft YaHei", 9))
