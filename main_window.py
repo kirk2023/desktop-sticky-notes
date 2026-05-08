@@ -1749,6 +1749,51 @@ class MainWindow(QMainWindow):
 
     # ==================== 计时操作 ====================
 
+    def _calc_sleep_minutes(self, start_dt, end_dt):
+        """
+        计算两个时间点之间的睡眠时间（分钟）
+        睡眠时段：每天 23:00 ~ 08:00（8小时）
+        """
+        from datetime import datetime, timedelta
+
+        SLEEP_START = 23  # 23:00
+        SLEEP_END = 8     # 08:00
+
+        total_sleep = 0
+        current = start_dt.replace(second=0, microsecond=0)
+
+        while current < end_dt:
+            hour = current.hour
+            if hour >= SLEEP_START:
+                # 进入睡眠时段，计算到午夜的时间
+                tonight_end = current.replace(hour=23, minute=59, second=59)
+                if end_dt <= tonight_end:
+                    total_sleep += (end_dt - current).total_seconds() / 60
+                    break
+                else:
+                    # 到午夜
+                    midnight = current.replace(hour=23, minute=59, second=59)
+                    total_sleep += (midnight - current).total_seconds() / 60 + 1
+                    # 跳到第二天 00:00
+                    current = (current + timedelta(days=1)).replace(hour=0, minute=0)
+            elif hour < SLEEP_END:
+                # 在早晨睡眠时段内
+                morning_end = current.replace(hour=SLEEP_END, minute=0)
+                if end_dt <= morning_end:
+                    total_sleep += (end_dt - current).total_seconds() / 60
+                    break
+                else:
+                    total_sleep += (morning_end - current).total_seconds() / 60
+                    current = morning_end
+            else:
+                # 非睡眠时段，跳到当天 23:00
+                tonight_start = current.replace(hour=SLEEP_START, minute=0)
+                if end_dt <= tonight_start:
+                    break
+                current = tonight_start
+
+        return int(total_sleep)
+
     def _on_start_timer(self, event_id):
         """开始/恢复计时"""
         timer_record = self.db.get_timer_record(event_id)
@@ -1776,18 +1821,37 @@ class MainWindow(QMainWindow):
 
                         if diff_minutes > 5:
                             diff_int = int(diff_minutes)
+
+                            # 计算有效工作时长（扣除睡眠时间 23:00~08:00）
+                            from datetime import datetime, timedelta
+                            planned_dt = datetime.strptime(
+                                event_data['planned_start'], "%Y-%m-%d %H:%M")
+                            now_dt = datetime.now()
+                            sleep_minutes = self._calc_sleep_minutes(
+                                planned_dt, now_dt)
+                            effective_minutes = diff_int - sleep_minutes
+                            if effective_minutes < 0:
+                                effective_minutes = 0
+
+                            sleep_str = ""
+                            if sleep_minutes > 0:
+                                sleep_str = (
+                                    f"\n（已扣除睡眠时间 {sleep_minutes // 60}小时"
+                                    f"{sleep_minutes % 60}分钟）")
+
                             reply = QMessageBox.question(
                                 self, "⏰ 迟到补偿",
                                 f"计划开始时间: {event_data['planned_start']}\n"
-                                f"当前时间: {now.strftime('%H:%M')}\n"
-                                f"已迟到约 {diff_int} 分钟\n\n"
-                                f"是否将迟到时间计入实际耗时？",
+                                f"当前时间: {now_dt.strftime('%H:%M')}\n"
+                                f"迟到间隔: {diff_int} 分钟\n"
+                                f"有效工作时长: {effective_minutes} 分钟"
+                                f"{sleep_str}\n\n"
+                                f"是否将有效工作时长计入实际耗时？",
                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
                             if reply == QMessageBox.Yes:
-                                offset = int(diff_minutes * 60)
+                                offset = effective_minutes * 60
                                 self.db.start_timer(event_id, manual_offset_seconds=offset)
-                                # 计入迟到 → 实际开始时间 = 计划时间
                                 self.db.update_event(event_id, actual_start_at=event_data['planned_start'])
                             else:
                                 self.db.start_timer(event_id)
@@ -1807,7 +1871,12 @@ class MainWindow(QMainWindow):
 
         # 同步卡片状态
         if event_id in self.sticky_cards:
-            self.sticky_cards[event_id].sync_start()
+            card = self.sticky_cards[event_id]
+            card.sync_start()
+            # 同步迟到补偿的累计时间到卡片显示
+            session_info = self.db.get_current_session_info(event_id)
+            if session_info and session_info['accumulated_seconds'] > 0:
+                card.accumulated_seconds = session_info['accumulated_seconds']
 
         # 首次开始时，同步事项状态 pending → in_progress
         event_data = self.db.get_event(event_id)
