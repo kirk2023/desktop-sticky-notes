@@ -431,6 +431,39 @@ class Database:
         cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
         self.conn.commit()
 
+    def duplicate_event(self, event_id):
+        """
+        复制事件（创建新事件，复制除状态/计时外的所有属性）
+
+        Returns:
+            新事件的ID，失败返回None
+        """
+        event = self.get_event(event_id)
+        if not event:
+            return None
+
+        cursor = self.conn.cursor()
+        # 复制事件，标题加"(副本)"，状态重置为pending
+        new_title = event['title'] + " (副本)" if event.get('title') else "(副本)"
+        cursor.execute("""
+            INSERT INTO events (
+                title, description, priority, color, status,
+                planned_start, planned_duration_minutes,
+                board_id
+            ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
+        """, (
+            new_title,
+            event.get('description'),
+            event.get('priority', 'medium'),
+            event.get('color'),
+            event.get('planned_start'),
+            event.get('planned_duration_minutes'),
+            event.get('board_id')
+        ))
+        new_id = cursor.lastrowid
+        self.conn.commit()
+        return new_id
+
     def archive_event(self, event_id):
         """归档事件"""
         self.update_event(event_id, status="archived")

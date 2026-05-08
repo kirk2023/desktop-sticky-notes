@@ -422,6 +422,7 @@ class MainWindow(QMainWindow):
         self.kanban_tab.event_status_changed.connect(self._on_kanban_status_changed)
         self.kanban_tab.create_event_requested.connect(self._on_kanban_create_event)
         self.kanban_tab.pin_card_to_desktop.connect(self._create_sticky_card)
+        self.kanban_tab.event_duplicate.connect(self._duplicate_event)
         self.tabs.addTab(self.kanban_tab, "📋 看板")
 
         # Tab2: 事件列表
@@ -634,6 +635,9 @@ class MainWindow(QMainWindow):
         self.event_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # 双击触发编辑
         self.event_list.itemDoubleClicked.connect(self._edit_event)
+        # 右键菜单
+        self.event_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.event_list.customContextMenuRequested.connect(self._show_event_list_context_menu)
         layout.addWidget(self.event_list)
 
         # 样式 - 工具栏按钮（不设 min/max-height，由 setFixedHeight 控制）
@@ -1337,6 +1341,33 @@ class MainWindow(QMainWindow):
             self._refresh_event_list()
             self.statusBar().showMessage(f"✅ 已更新事项: {data['title']}", 3000)
 
+    def _duplicate_event(self, event_id):
+        """复制事件（弹出编辑对话框让用户确认）"""
+        event_data = self.db.get_event(event_id)
+        if not event_data:
+            return
+
+        # 准备复制的数据：标题加"(副本)"，状态重置
+        copy_data = dict(event_data)
+        copy_data['title'] = event_data['title'] + " (副本)" if event_data.get('title') else "(副本)"
+        copy_data['status'] = 'pending'
+        # 清除计时相关字段
+        copy_data['actual_start_at'] = None
+        copy_data['actual_duration_seconds'] = 0
+
+        # 弹出编辑对话框让用户确认/修改
+        dialog = EventDialog(self, copy_data, db=self.db)
+        dialog.setWindowTitle("复制事项")
+        if dialog.exec_() == QDialog.Accepted:
+            data = dialog.get_data()
+            if not data['title']:
+                QMessageBox.warning(self, "提示", "请输入事项标题！")
+                return
+            # 创建新事件
+            new_id = self.db.create_event(**data)
+            self._refresh_event_list()
+            self.statusBar().showMessage(f"✅ 已复制事项: {data['title']}", 3000)
+
     def _delete_event(self):
         """删除事件"""
         current = self.event_list.currentItem()
@@ -1368,6 +1399,50 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'kanban_tab'):
                 self.kanban_tab.refresh()
             self.statusBar().showMessage(f"🗑️ 已删除事项: {title}", 3000)
+
+    def _show_event_list_context_menu(self, pos):
+        """事项列表右键菜单"""
+        current = self.event_list.currentItem()
+        if not current:
+            return
+
+        event_id = current.data(Qt.UserRole)
+        if not event_id:
+            return
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #ffffff;
+                border: 1px solid #dcdde1;
+                border-radius: 6px;
+                padding: 6px;
+                font-family: "Microsoft YaHei";
+                font-size: 12px;
+            }
+            QMenu::item {
+                padding: 6px 24px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+        """)
+
+        edit_action = menu.addAction("✏️ 编辑事项")
+        menu.addSeparator()
+        copy_action = menu.addAction("📋 复制事件")
+        menu.addSeparator()
+        delete_action = menu.addAction("🗑 删除事项")
+
+        action = menu.exec_(self.event_list.mapToGlobal(pos))
+        if action == edit_action:
+            self._edit_event(event_id)
+        elif action == copy_action:
+            self._duplicate_event(event_id)
+        elif action == delete_action:
+            self._delete_event()
 
     def _get_selected_event_ids(self):
         """获取列表中所有选中事项的 ID"""

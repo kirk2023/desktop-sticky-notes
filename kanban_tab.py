@@ -14,6 +14,7 @@ class KanbanCard(QFrame):
 
     event_edit_requested = pyqtSignal(int)
     pin_to_desktop = pyqtSignal(int)  # Pin到桌面信号
+    event_duplicate = pyqtSignal(int)  # 复制事件信号
 
     PRIORITY_COLORS = {
         "high": "#e74c3c",
@@ -188,12 +189,16 @@ class KanbanCard(QFrame):
         """)
         edit_action = menu.addAction("✏️ 编辑事项")
         pin_action = menu.addAction("📌 Pin 到桌面")
+        menu.addSeparator()
+        copy_action = menu.addAction("📋 复制事件")
 
         action = menu.exec_(self.mapToGlobal(pos))
         if action == edit_action:
             self.event_edit_requested.emit(self.event_id)
         elif action == pin_action:
             self.pin_to_desktop.emit(self.event_id)
+        elif action == copy_action:
+            self.event_duplicate.emit(self.event_id)
 
     def mouseDoubleClickEvent(self, event):
         self.event_edit_requested.emit(self.event_id)
@@ -206,6 +211,7 @@ class KanbanLane(QWidget):
     """看板甬道 - 包含标题和卡片列表，接受拖放"""
 
     pin_to_desktop = pyqtSignal(int)  # 转发卡片Pin信号
+    event_duplicate = pyqtSignal(int)  # 转发卡片复制信号
 
     def __init__(self, lane_data, db, board_id, parent=None):
         super().__init__(parent)
@@ -433,6 +439,7 @@ class KanbanLane(QWidget):
             card = KanbanCard(event, self)
             card.event_edit_requested.connect(event_edit_callback)
             card.pin_to_desktop.connect(self.pin_to_desktop.emit)
+            card.event_duplicate.connect(self.event_duplicate.emit)
             self.cards_layout.addWidget(card)
 
         self.count_label.setText(str(len(events)))
@@ -1304,6 +1311,7 @@ class KanbanTab(QWidget):
     event_status_changed = pyqtSignal()
     create_event_requested = pyqtSignal(int)
     pin_card_to_desktop = pyqtSignal(int)  # Pin卡片到桌面
+    event_duplicate = pyqtSignal(int)  # 复制事件
 
     def __init__(self, db, parent=None):
         super().__init__(parent)
@@ -1536,6 +1544,7 @@ class KanbanTab(QWidget):
                 lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
                 lane.load_cards(self.event_edit_requested.emit)
                 lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
+                lane.event_duplicate.connect(self.event_duplicate.emit)
                 self.lanes_layout.addWidget(lane)
                 self.lanes.append(lane)
             except Exception as e:
