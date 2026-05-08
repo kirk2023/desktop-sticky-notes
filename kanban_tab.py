@@ -1573,9 +1573,10 @@ class KanbanTab(QWidget):
             for lane in self.lanes:
                 lane.apply_zoom(self._zoom_level)
 
-        # 恢复滚动位置
-        if scroll_bar and old_scroll_pos > 0:
-            scroll_bar.setValue(old_scroll_pos)
+        # 恢复滚动位置（延迟执行，等布局完成）
+        if scroll_bar is not None:
+            saved_pos = old_scroll_pos
+            QTimer.singleShot(50, lambda: scroll_bar.setValue(saved_pos))
 
         # 统一刷新所有甬道样式（确保外框和标题颜色正确显示）
         for lane in self.lanes:
