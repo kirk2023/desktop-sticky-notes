@@ -15,6 +15,7 @@ class KanbanCard(QFrame):
     event_edit_requested = pyqtSignal(int)
     pin_to_desktop = pyqtSignal(int)  # Pin到桌面信号
     event_duplicate = pyqtSignal(int)  # 复制事件信号
+    event_delete = pyqtSignal(int)  # 删除事件信号
 
     PRIORITY_COLORS = {
         "high": "#e74c3c",
@@ -191,6 +192,7 @@ class KanbanCard(QFrame):
         pin_action = menu.addAction("📌 Pin 到桌面")
         menu.addSeparator()
         copy_action = menu.addAction("📋 复制事件")
+        delete_action = menu.addAction("🗑 删除事项")
 
         action = menu.exec_(self.mapToGlobal(pos))
         if action == edit_action:
@@ -199,6 +201,8 @@ class KanbanCard(QFrame):
             self.pin_to_desktop.emit(self.event_id)
         elif action == copy_action:
             self.event_duplicate.emit(self.event_id)
+        elif action == delete_action:
+            self.event_delete.emit(self.event_id)
 
     def mouseDoubleClickEvent(self, event):
         self.event_edit_requested.emit(self.event_id)
@@ -212,6 +216,7 @@ class KanbanLane(QWidget):
 
     pin_to_desktop = pyqtSignal(int)  # 转发卡片Pin信号
     event_duplicate = pyqtSignal(int)  # 转发卡片复制信号
+    event_delete = pyqtSignal(int)  # 转发卡片删除信号
 
     def __init__(self, lane_data, db, board_id, parent=None):
         super().__init__(parent)
@@ -440,6 +445,7 @@ class KanbanLane(QWidget):
             card.event_edit_requested.connect(event_edit_callback)
             card.pin_to_desktop.connect(self.pin_to_desktop.emit)
             card.event_duplicate.connect(self.event_duplicate.emit)
+            card.event_delete.connect(self.event_delete.emit)
             self.cards_layout.addWidget(card)
 
         self.count_label.setText(str(len(events)))
@@ -1312,6 +1318,7 @@ class KanbanTab(QWidget):
     create_event_requested = pyqtSignal(int)
     pin_card_to_desktop = pyqtSignal(int)  # Pin卡片到桌面
     event_duplicate = pyqtSignal(int)  # 复制事件
+    event_delete = pyqtSignal(int)  # 删除事件
 
     def __init__(self, db, parent=None):
         super().__init__(parent)
@@ -1523,9 +1530,16 @@ class KanbanTab(QWidget):
         self._show_board_list()
 
     def refresh(self):
-        """刷新当前看板的甬道和卡片"""
+        """刷新当前看板的甬道和卡片（保持缩放和滚动位置）"""
         if self.current_board_id is None:
             return
+
+        # 保存当前滚动位置
+        scroll_bar = self.lanes_scroll.horizontalScrollBar()
+        old_scroll_pos = scroll_bar.value() if scroll_bar else 0
+
+        # 保存缩放级别
+        old_zoom = self._zoom_level
 
         # 清空旧甬道
         for lane in self.lanes:
@@ -1545,12 +1559,23 @@ class KanbanTab(QWidget):
                 lane.load_cards(self.event_edit_requested.emit)
                 lane.pin_to_desktop.connect(self.pin_card_to_desktop.emit)
                 lane.event_duplicate.connect(self.event_duplicate.emit)
+                lane.event_delete.connect(self.event_delete.emit)
                 self.lanes_layout.addWidget(lane)
                 self.lanes.append(lane)
             except Exception as e:
                 traceback.print_exc()
 
         self.lanes_layout.addStretch()
+
+        # 恢复缩放级别
+        if old_zoom != 1.0:
+            self._zoom_level = old_zoom
+            for lane in self.lanes:
+                lane.apply_zoom(self._zoom_level)
+
+        # 恢复滚动位置
+        if scroll_bar and old_scroll_pos > 0:
+            scroll_bar.setValue(old_scroll_pos)
 
         # 统一刷新所有甬道样式（确保外框和标题颜色正确显示）
         for lane in self.lanes:

@@ -423,6 +423,7 @@ class MainWindow(QMainWindow):
         self.kanban_tab.create_event_requested.connect(self._on_kanban_create_event)
         self.kanban_tab.pin_card_to_desktop.connect(self._create_sticky_card)
         self.kanban_tab.event_duplicate.connect(self._duplicate_event)
+        self.kanban_tab.event_delete.connect(self._delete_event_by_id)
         self.tabs.addTab(self.kanban_tab, "📋 看板")
 
         # Tab2: 事件列表
@@ -634,7 +635,8 @@ class MainWindow(QMainWindow):
         self.event_list.setSpacing(6)
         self.event_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # 双击触发编辑
-        self.event_list.itemDoubleClicked.connect(self._edit_event)
+        self.event_list.itemDoubleClicked.connect(
+            lambda item: self._edit_event(item.data(Qt.UserRole)))
         # 右键菜单
         self.event_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.event_list.customContextMenuRequested.connect(self._show_event_list_context_menu)
@@ -1402,6 +1404,27 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'kanban_tab'):
                 self.kanban_tab.refresh()
             self.statusBar().showMessage(f"🗑️ 已删除事项: {title}", 3000)
+
+    def _delete_event_by_id(self, event_id):
+        """根据ID删除事件（从看板右键菜单调用）"""
+        event_data = self.db.get_event(event_id)
+        if not event_data:
+            return
+
+        reply = QMessageBox.question(
+            self, "确认删除",
+            f"确定要删除事项「{event_data['title']}」吗？\n此操作不可撤销。",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            if event_id in self.sticky_cards:
+                self.sticky_cards[event_id].close()
+                del self.sticky_cards[event_id]
+            self.db.delete_event(event_id)
+            self._refresh_event_list()
+            if hasattr(self, 'kanban_tab'):
+                self.kanban_tab.refresh()
+            self.statusBar().showMessage(f"🗑️ 已删除事项: {event_data['title']}", 3000)
 
     def _show_event_list_context_menu(self, pos):
         """事项列表右键菜单"""
