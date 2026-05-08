@@ -23,10 +23,11 @@ class KanbanCard(QFrame):
         "low": "#27ae60",
     }
 
-    def __init__(self, event_data, parent=None):
+    def __init__(self, event_data, db=None, parent=None):
         super().__init__(parent)
         self.event_data = event_data
         self.event_id = event_data['id']
+        self.db = db
         self.setMinimumHeight(60)
         self.setCursor(Qt.OpenHandCursor)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -75,17 +76,20 @@ class KanbanCard(QFrame):
             duration_str = f"{duration / 60:.1f}小时"
         else:
             duration_str = f"{duration}分钟"
-        # 已发生时长（从event_data获取）
-        elapsed = self.event_data.get('actual_duration_seconds', 0)
-        if elapsed > 0:
-            elapsed_min = elapsed // 60
-            if elapsed_min >= 60:
-                elapsed_str = f"{elapsed_min // 60}小时{elapsed_min % 60}分"
-            else:
-                elapsed_str = f"{elapsed_min}分钟"
-            elapsed_text = f"已用 {elapsed_str}"
-        else:
-            elapsed_text = ""
+        # 已发生时长（从数据库实时查询）
+        elapsed_text = ""
+        if self.db:
+            try:
+                elapsed = self.db.get_total_elapsed_seconds(self.event_id)
+                if elapsed > 0:
+                    elapsed_min = elapsed // 60
+                    if elapsed_min >= 60:
+                        elapsed_str = f"{elapsed_min // 60}小时{elapsed_min % 60}分"
+                    else:
+                        elapsed_str = f"{elapsed_min}分钟"
+                    elapsed_text = f"已用 {elapsed_str}"
+            except Exception:
+                pass
         # 组合显示
         if planned_start:
             try:
@@ -456,7 +460,7 @@ class KanbanLane(QWidget):
 
         events = self.db.get_lane_events(self.lane_id)
         for event in events:
-            card = KanbanCard(event, self)
+            card = KanbanCard(event, self.db, self)
             card.event_edit_requested.connect(event_edit_callback)
             card.pin_to_desktop.connect(self.pin_to_desktop.emit)
             card.event_duplicate.connect(self.event_duplicate.emit)
