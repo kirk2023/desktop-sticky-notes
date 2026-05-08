@@ -1570,11 +1570,12 @@ class KanbanTab(QWidget):
 
         self.lanes_layout.addStretch()
 
-        # 恢复缩放级别
-        if old_zoom != 1.0:
-            self._zoom_level = old_zoom
-            for lane in self.lanes:
-                lane.apply_zoom(self._zoom_level)
+        # 恢复缩放级别（包括甬道宽度）
+        base_width = 280
+        new_width = int(base_width * old_zoom)
+        for lane in self.lanes:
+            lane.setFixedWidth(new_width)
+            lane.apply_zoom(old_zoom)
 
         # 恢复滚动位置（延迟执行，等布局完成）
         if scroll_bar is not None:
