@@ -1535,7 +1535,7 @@ class KanbanTab(QWidget):
             return
 
         # 保存当前滚动位置
-        scroll_bar = self.lanes_scroll.horizontalScrollBar()
+        scroll_bar = self.scroll_area.horizontalScrollBar()
         old_scroll_pos = scroll_bar.value() if scroll_bar else 0
 
         # 保存缩放级别
