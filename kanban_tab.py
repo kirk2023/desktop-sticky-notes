@@ -1430,7 +1430,6 @@ class KanbanTab(QWidget):
         self.lanes_layout = QHBoxLayout(self.lanes_container)
         self.lanes_layout.setContentsMargins(8, 8, 8, 8)
         self.lanes_layout.setSpacing(12)
-        self.lanes_layout.setLayoutDirection(Qt.LeftToRight)  # 确保从左到右布局
         self.lanes_layout.addStretch()
 
         self.scroll_area.setWidget(self.lanes_container)
