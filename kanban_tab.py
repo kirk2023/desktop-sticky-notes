@@ -1426,9 +1426,11 @@ class KanbanTab(QWidget):
 
         self.lanes_container = QWidget()
         self.lanes_container.setStyleSheet("background-color: #f5f6fa;")
+        self.lanes_container.setLayoutDirection(Qt.LeftToRight)  # 确保从左到右
         self.lanes_layout = QHBoxLayout(self.lanes_container)
         self.lanes_layout.setContentsMargins(8, 8, 8, 8)
         self.lanes_layout.setSpacing(12)
+        self.lanes_layout.setLayoutDirection(Qt.LeftToRight)  # 确保从左到右布局
         self.lanes_layout.addStretch()
 
         self.scroll_area.setWidget(self.lanes_container)
@@ -1537,6 +1539,7 @@ class KanbanTab(QWidget):
         # 保存当前滚动位置
         scroll_bar = self.scroll_area.horizontalScrollBar()
         old_scroll_pos = scroll_bar.value() if scroll_bar else 0
+        print(f"[看板刷新] 保存滚动位置: {old_scroll_pos}")
 
         # 保存缩放级别
         old_zoom = self._zoom_level
@@ -1552,6 +1555,7 @@ class KanbanTab(QWidget):
             item = self.lanes_layout.takeAt(0)
 
         lanes_data = self.db.get_kanban_lanes(self.current_board_id)
+        print(f"[看板刷新] 甬道数量: {len(lanes_data)}, 甬道顺序: {[l['name'] for l in lanes_data]}")
         import traceback
         for lane_data in lanes_data:
             try:
@@ -1576,7 +1580,12 @@ class KanbanTab(QWidget):
         # 恢复滚动位置（延迟执行，等布局完成）
         if scroll_bar is not None:
             saved_pos = old_scroll_pos
-            QTimer.singleShot(50, lambda: scroll_bar.setValue(saved_pos))
+            print(f"[看板刷新] 准备恢复滚动位置: {saved_pos}, 当前值: {scroll_bar.value()}, 最大值: {scroll_bar.maximum()}")
+            QTimer.singleShot(50, lambda: (
+                print(f"[看板刷新] 恢复前: {scroll_bar.value()}, 恢复到: {saved_pos}"),
+                scroll_bar.setValue(saved_pos),
+                print(f"[看板刷新] 恢复后: {scroll_bar.value()}")
+            ))
 
         # 统一刷新所有甬道样式（确保外框和标题颜色正确显示）
         for lane in self.lanes:
