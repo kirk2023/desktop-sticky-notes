@@ -1,0 +1,331 @@
+
+============================================================
+[2026-04-26 20:11:07] UnboundLocalError: cannot access local variable 'QDate' where it is not associated with a value
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\kanban_tab.py", line 1133, in <lambda>
+    lambda pos, bid=board['id'], bname=board['name'], c=card: self._show_board_context_menu(pos, bid, bname, c)
+                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\kanban_tab.py", line 1187, in _show_board_context_menu
+    self._set_board_deadline(board_id, board_name)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\kanban_tab.py", line 1232, in _set_board_deadline
+    date_input.setDate(QDate.currentDate())
+                       ^^^^^
+UnboundLocalError: cannot access local variable 'QDate' where it is not associated with a value
+============================================================
+
+============================================================
+[2026-04-26 20:13:32] NameError: name 'QApplication' is not defined
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2192, in _quit_app
+    QApplication.quit()
+    ^^^^^^^^^^^^
+NameError: name 'QApplication' is not defined
+============================================================
+
+============================================================
+[2026-04-26 20:13:34] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:14:04] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:14:12] UnboundLocalError: cannot access local variable 'QDate' where it is not associated with a value
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\kanban_tab.py", line 1133, in <lambda>
+    lambda pos, bid=board['id'], bname=board['name'], c=card: self._show_board_context_menu(pos, bid, bname, c)
+                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\kanban_tab.py", line 1187, in _show_board_context_menu
+    self._set_board_deadline(board_id, board_name)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\kanban_tab.py", line 1232, in _set_board_deadline
+    date_input.setDate(QDate.currentDate())
+                       ^^^^^
+UnboundLocalError: cannot access local variable 'QDate' where it is not associated with a value
+============================================================
+
+============================================================
+[2026-04-26 20:14:34] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:15:04] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:15:34] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:16:04] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:16:34] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:17:04] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1697, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 338, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-04-26 20:34:05] NameError: name 'QDoubleSpinBox' is not defined
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1164, in _edit_event
+    dialog = EventDialog(self, event_data, db=self.db)
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 50, in __init__
+    self._setup_ui()
+    ~~~~~~~~~~~~~~^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 146, in _setup_ui
+    self.duration_spin = QDoubleSpinBox()
+                         ^^^^^^^^^^^^^^
+NameError: name 'QDoubleSpinBox' is not defined
+============================================================
+
+============================================================
+[2026-04-26 20:34:27] NameError: name 'QDoubleSpinBox' is not defined
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1164, in _edit_event
+    dialog = EventDialog(self, event_data, db=self.db)
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 50, in __init__
+    self._setup_ui()
+    ~~~~~~~~~~~~~~^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 146, in _setup_ui
+    self.duration_spin = QDoubleSpinBox()
+                         ^^^^^^^^^^^^^^
+NameError: name 'QDoubleSpinBox' is not defined
+============================================================
+
+============================================================
+[2026-04-26 20:34:42] NameError: name 'QDoubleSpinBox' is not defined
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1164, in _edit_event
+    dialog = EventDialog(self, event_data, db=self.db)
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 50, in __init__
+    self._setup_ui()
+    ~~~~~~~~~~~~~~^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 146, in _setup_ui
+    self.duration_spin = QDoubleSpinBox()
+                         ^^^^^^^^^^^^^^
+NameError: name 'QDoubleSpinBox' is not defined
+============================================================
+
+============================================================
+[2026-05-03 13:19:53] NameError: name 'QApplication' is not defined
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2357, in _quit_app
+    QApplication.quit()
+    ^^^^^^^^^^^^
+NameError: name 'QApplication' is not defined
+============================================================
+
+============================================================
+[2026-05-03 13:19:53] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:54] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:55] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:56] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:57] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:58] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:59] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1795, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 358, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:19:59] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:20:00] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:20:01] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:20:02] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:20:03] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:20:04] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2278, in _update_status
+    if not self.db.get_setting('rest_reminder_enabled', False):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 706, in get_setting
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================
+
+============================================================
+[2026-05-03 13:29:05] NameError: name 'QApplication' is not defined
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 2355, in _quit_app
+    QApplication.quit()
+    ^^^^^^^^^^^^
+NameError: name 'QApplication' is not defined
+============================================================
+
+============================================================
+[2026-05-03 13:29:16] ProgrammingError: Cannot operate on a closed database.
+Traceback (most recent call last):
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\main_window.py", line 1795, in _check_notifications
+    all_pending = self.db.get_all_events(status="pending")
+  File "D:\greensoft\桌面便利贴\desktop_sticky_notes\database.py", line 358, in get_all_events
+    cursor = self.conn.cursor()
+sqlite3.ProgrammingError: Cannot operate on a closed database.
+============================================================

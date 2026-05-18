@@ -1,32 +1,38 @@
-# Python
+# Build outputs
+output/
+build/
+dist/
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-*.egg-info/
-dist/
-build/
-*.egg
+*.pyc
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 
 # OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# Database (user data)
-*.db
-*.sqlite
-*.sqlite3
+# PyInstaller
+*.spec
 
 # Logs
 *.log
 error.log
 
-# Build output
-*.spec
+# Database (user data)
+*.db
+
+# Icon generator scripts (not needed in repo)
+create_icon.py
+generate_icons.py
+app_icon.svg
+
+# Multiple size icons (keep only logo.png and logo.ico)
+logo_*.png

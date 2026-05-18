@@ -33,6 +33,45 @@ from models import Event
 from rest_reminder import RestReminderDialog
 
 
+class IconHelper:
+    """图标管理器 - 使用专业图标替代emoji"""
+
+    @staticmethod
+    def get_icon(name, color="#555555"):
+        """获取图标"""
+        icons = {
+            "pin": "📌",
+            "edit": "✏️",
+            "add": "➕",
+            "delete": "🗑️",
+            "start": "▶",
+            "pause": "⏸",
+            "done": "✓",
+            "refresh": "🔄",
+            "restore": "↩️",
+            "visible": "👁️",
+            "hide": "🙈",
+            "settings": "⚙️",
+            "info": "ℹ️",
+            "lightbulb": "💡",
+            "cat": "🐱",
+            "folder": "📂",
+            "database": "💾",
+            "chart": "📊",
+            "stats": "📈",
+            "clock": "⏰",
+            "timer": "⏱",
+            "high_priority": "🔴",
+            "medium_priority": "🟡",
+            "low_priority": "🟢",
+            "paint": "🎨",
+            "bolt": "⚡",
+            "document": "📝",
+            "clipboard": "📋",
+        }
+        return icons.get(name, "")
+
+
 class EventDialog(QDialog):
     """事件创建/编辑对话框"""
 
@@ -60,14 +99,14 @@ class EventDialog(QDialog):
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("输入事项标题...")
         self.title_input.setFont(QFont("Microsoft YaHei", 10))
-        layout.addRow("📌 标题：", self.title_input)
+        layout.addRow("标题：", self.title_input)
 
         # 描述
         self.desc_input = QTextEdit()
         self.desc_input.setPlaceholderText("输入事项描述（可选）...")
         self.desc_input.setMaximumHeight(80)
         self.desc_input.setFont(QFont("Microsoft YaHei", 9))
-        layout.addRow("📝 描述：", self.desc_input)
+        layout.addRow("描述：", self.desc_input)
 
         # 计划开始时间 - 日期 + 小时/分钟下拉选择
         datetime_layout = QHBoxLayout()
@@ -112,7 +151,7 @@ class EventDialog(QDialog):
             self.minute_combo.setCurrentIndex(idx)
         datetime_layout.addWidget(self.minute_combo, 1)
 
-        layout.addRow("⏰ 开始时间：", datetime_layout)
+        layout.addRow("开始时间：", datetime_layout)
 
         # 计划时长 - 下拉框预设 + 自定义输入
         duration_layout = QHBoxLayout()
@@ -158,14 +197,14 @@ class EventDialog(QDialog):
         self.duration_spin.valueChanged.connect(self._sync_duration_from_spin)
         duration_layout.addWidget(self.duration_spin)
 
-        layout.addRow("⏱ 计划时长：", duration_layout)
+        layout.addRow("计划时长：", duration_layout)
 
         # 优先级
         self.priority_input = QComboBox()
-        self.priority_input.addItems(["🔴 高", "🟡 中", "🟢 低"])
+        self.priority_input.addItems(["高", "中", "低"])
         self.priority_input.setCurrentIndex(1)
         self.priority_input.setFont(QFont("Microsoft YaHei", 9))
-        layout.addRow("⚡ 优先级：", self.priority_input)
+        layout.addRow("优先级：", self.priority_input)
 
         # 颜色选择
         color_layout = QHBoxLayout()
@@ -178,7 +217,7 @@ class EventDialog(QDialog):
         color_layout.addWidget(self.color_btn)
         color_layout.addWidget(self.color_label)
         color_layout.addStretch()
-        layout.addRow("🎨 颜色：", color_layout)
+        layout.addRow("颜色：", color_layout)
 
         # 归属看板
         self.board_combo = QComboBox()
@@ -196,7 +235,7 @@ class EventDialog(QDialog):
                         break
         else:
             self.board_combo.addItem("无", None)
-        layout.addRow("📋 归属看板：", self.board_combo)
+        layout.addRow("归属看板：", self.board_combo)
 
         # 按钮
         btn_layout = QHBoxLayout()
@@ -375,7 +414,7 @@ class MainWindow(QMainWindow):
         self._rest_reminder_event_id = None  # 休息提醒关联的事件ID
         self._last_rest_trigger_time = {}  # 记录每个事件上次触发休息时的累计秒数
 
-        self.setWindowTitle("📌 桌面便利贴 - 计划计时系统")
+        self.setWindowTitle("桌面便利贴 - 计划计时系统")
         self.setMinimumSize(900, 650)
 
         # 设置窗口图标
@@ -402,7 +441,7 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(20, 0, 20, 0)
 
-        title = QLabel("📌 桌面便利贴")
+        title = QLabel("桌面便利贴")
         title.setObjectName("headerTitle")
         title.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
         header_layout.addWidget(title)
@@ -424,33 +463,33 @@ class MainWindow(QMainWindow):
         self.kanban_tab.pin_card_to_desktop.connect(self._create_sticky_card)
         self.kanban_tab.event_duplicate.connect(self._duplicate_event)
         self.kanban_tab.event_delete.connect(self._delete_event_by_id)
-        self.tabs.addTab(self.kanban_tab, "📋 看板")
+        self.tabs.addTab(self.kanban_tab, "看板")
 
         # Tab2: 事件列表
         self.event_tab = QWidget()
         self._setup_event_tab()
-        self.tabs.addTab(self.event_tab, "📝 事项列表")
+        self.tabs.addTab(self.event_tab, "事项列表")
 
         # Tab3: 桌面卡片管理
         self.cards_tab = QWidget()
         self._setup_cards_tab()
-        self.tabs.addTab(self.cards_tab, "📌 桌面卡片")
+        self.tabs.addTab(self.cards_tab, "桌面卡片")
 
         # Tab4: 甘特图
         from gantt_tab import GanttTab
         self.gantt_tab = GanttTab(self.db)
         self.gantt_tab.event_edit_requested.connect(self._edit_event)
-        self.tabs.addTab(self.gantt_tab, "📊 甘特图")
+        self.tabs.addTab(self.gantt_tab, "甘特图")
 
         # Tab5: 归档分析
         self.archive_tab = QWidget()
         self._setup_archive_tab()
-        self.tabs.addTab(self.archive_tab, "📊 归档分析")
+        self.tabs.addTab(self.archive_tab, "归档分析")
 
         # Tab6: 设置
         self.settings_tab = QWidget()
         self._setup_settings_tab()
-        self.tabs.addTab(self.settings_tab, "⚙️ 设置")
+        self.tabs.addTab(self.settings_tab, "设置")
 
         main_layout.addWidget(self.tabs)
 
@@ -472,42 +511,54 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # 全局样式
+        # 全局样式 - 专业简洁风格（蓝绿中性色调）
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #f0f2f5;
             }
             #header {
-                background-color: white;
-                border-bottom: 1px solid #e0e0e0;
+                background-color: #2c3e50;
+                border-bottom: none;
             }
             #headerTitle {
-                color: #2c3e50;
+                color: #ecf0f1;
+                font-size: 15px;
             }
             QTabWidget::pane {
                 border: none;
                 background-color: #f0f2f5;
             }
             QTabBar::tab {
-                background-color: #ecf0f1;
-                color: #7f8c8d;
+                background-color: #dfe6e9;
+                color: #636e72;
                 padding: 10px 24px;
                 font-size: 12px;
-                font-weight: bold;
+                font-weight: 500;
                 border: none;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
-                margin-right: 2px;
+                margin-right: 3px;
             }
             QTabBar::tab:selected {
                 background-color: white;
-                color: #3498db;
+                color: #2d3436;
             }
             QTabBar::tab:hover {
-                background-color: #dfe6e9;
+                background-color: #c8d6e5;
             }
             QPushButton {
                 font-family: "Microsoft YaHei";
+            }
+            QGroupBox {
+                border: 1px solid #dfe6e9;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 16px;
+                background-color: white;
+                font-weight: 600;
+            }
+            QGroupBox::title {
+                color: #2d3436;
             }
         """)
 
@@ -601,19 +652,19 @@ class MainWindow(QMainWindow):
         batch_label.setStyleSheet("color: #7f8c8d; font-size: 11px; border: none;")
         toolbar2.addWidget(batch_label)
 
-        batch_start_btn = QPushButton("▶ 开始")
+        batch_start_btn = QPushButton("开始")
         batch_start_btn.setObjectName("batchBtn")
         batch_start_btn.setFixedHeight(24)
         batch_start_btn.clicked.connect(self._batch_start)
         toolbar2.addWidget(batch_start_btn)
 
-        batch_pause_btn = QPushButton("⏸ 暂停")
+        batch_pause_btn = QPushButton("暂停")
         batch_pause_btn.setObjectName("batchBtn")
         batch_pause_btn.setFixedHeight(24)
         batch_pause_btn.clicked.connect(self._batch_pause)
         toolbar2.addWidget(batch_pause_btn)
 
-        batch_done_btn = QPushButton("✓ 完成")
+        batch_done_btn = QPushButton("完成")
         batch_done_btn.setObjectName("batchBtn")
         batch_done_btn.setFixedHeight(24)
         batch_done_btn.clicked.connect(self._batch_complete)
@@ -651,78 +702,79 @@ class MainWindow(QMainWindow):
             #addBtn {{
                 background-color: #27ae60;
                 color: white;
-                border: 1px solid transparent;
+                border: none;
                 border-radius: {BTN_RADIUS};
                 padding: {BTN_PADDING};
-                font-weight: bold;
+                font-weight: 600;
                 font-size: {BTN_FONT};
             }}
             #addBtn:hover {{
-                background-color: #2ecc71;
+                background-color: #219a52;
             }}
             #toolBtn {{
                 background-color: white;
-                color: #555;
-                border: 1px solid transparent;
+                color: #4a5568;
+                border: 1px solid #e2e8f0;
                 border-radius: {BTN_RADIUS};
                 padding: {BTN_PADDING};
                 font-size: {BTN_FONT};
             }}
             #toolBtn:hover {{
-                background-color: #ecf0f1;
-                color: #3498db;
+                background-color: #edf2f7;
+                border-color: #4a5568;
             }}
             #deleteBtn {{
                 background-color: white;
-                color: #555;
-                border: 1px solid transparent;
+                color: #4a5568;
+                border: 1px solid #e2e8f0;
                 border-radius: {BTN_RADIUS};
                 padding: {BTN_PADDING};
                 font-size: {BTN_FONT};
             }}
             #deleteBtn:hover {{
-                background-color: #fdedec;
-                color: #e74c3c;
+                background-color: #fff5f5;
+                border-color: #e53e3e;
+                color: #e53e3e;
             }}
             #batchBtn {{
-                background-color: #f8f9fa;
-                color: #555;
-                border: 1px solid transparent;
+                background-color: white;
+                color: #4a5568;
+                border: 1px solid #e2e8f0;
                 border-radius: {BTN_RADIUS};
                 padding: {BTN_PADDING};
                 font-size: 11px;
             }}
             #batchBtn:hover {{
-                background-color: #ecf0f1;
-                color: #3498db;
+                background-color: #edf2f7;
+                border-color: #4a5568;
             }}
             #pinBtn {{
                 background-color: #3498db;
                 color: white;
-                border: 1px solid transparent;
+                border: none;
                 border-radius: {BTN_RADIUS};
                 padding: {BTN_PADDING};
-                font-weight: bold;
+                font-weight: 600;
                 font-size: {BTN_FONT};
             }}
             #pinBtn:hover {{
                 background-color: #2980b9;
             }}
             #archiveBtn {{
-                background-color: #8e44ad;
+                background-color: #9b59b6;
                 color: white;
-                border: 1px solid transparent;
+                border: none;
                 border-radius: {BTN_RADIUS};
                 padding: {BTN_PADDING};
-                font-weight: bold;
+                font-weight: 600;
                 font-size: {BTN_FONT};
             }}
             #archiveBtn:hover {{
-                background-color: #9b59b6;
+                background-color: #8e44ad;
             }}
             #eventList {{
                 background-color: white;
-                border: 1px solid #e0e0e0;
+                border: 1px solid #e2e8f0;
                 border-radius: 8px;
                 padding: 8px;
                 outline: none;
@@ -749,7 +801,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 16)
 
         # 说明
-        info = QLabel("📌 已 Pin 到桌面的卡片会显示在桌面上，可自由拖拽。")
+        info = QLabel("已Pin到桌面的卡片会显示在桌面上，可自由拖拽。")
         info.setStyleSheet("color: #7f8c8d; font-size: 12px; padding: 8px;")
         layout.addWidget(info)
 
@@ -762,17 +814,17 @@ class MainWindow(QMainWindow):
         # 操作按钮
         btn_layout = QHBoxLayout()
 
-        remove_card_btn = QPushButton("❌ 取消 Pin")
+        remove_card_btn = QPushButton("取消Pin")
         remove_card_btn.setObjectName("removeCardBtn")
         remove_card_btn.clicked.connect(self._remove_selected_card)
         btn_layout.addWidget(remove_card_btn)
 
-        show_all_btn = QPushButton("👁️ 显示所有卡片")
+        show_all_btn = QPushButton("显示所有卡片")
         show_all_btn.setObjectName("showAllBtn")
         show_all_btn.clicked.connect(self._show_all_cards)
         btn_layout.addWidget(show_all_btn)
 
-        hide_all_btn = QPushButton("🙈 隐藏所有卡片")
+        hide_all_btn = QPushButton("隐藏所有卡片")
         hide_all_btn.setObjectName("hideAllBtn")
         hide_all_btn.clicked.connect(self._hide_all_cards)
         btn_layout.addWidget(hide_all_btn)
@@ -789,29 +841,29 @@ class MainWindow(QMainWindow):
                 outline: none;
             }
             #removeCardBtn {
-                background-color: #e74c3c;
+                background-color: #e53e3e;
                 color: white;
                 border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: bold;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: 600;
                 font-size: 12px;
             }
             #removeCardBtn:hover {
-                background-color: #c0392b;
+                background-color: #c53030;
             }
             #showAllBtn, #hideAllBtn {
                 background-color: white;
-                color: #555;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                padding: 8px 16px;
+                color: #525f7f;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 10px 20px;
                 font-size: 12px;
             }
             #showAllBtn:hover, #hideAllBtn:hover {
-                background-color: #ecf0f1;
-                border-color: #3498db;
-                color: #3498db;
+                background-color: #f5f7fa;
+                border-color: #667eea;
+                color: #667eea;
             }
         """)
 
@@ -821,7 +873,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 16)
 
         # 统计概览
-        stats_group = QGroupBox("📈 统计概览")
+        stats_group = QGroupBox("统计概览")
         stats_group.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
         stats_layout = QHBoxLayout(stats_group)
 
@@ -843,13 +895,13 @@ class MainWindow(QMainWindow):
         archive_toolbar = QHBoxLayout()
         archive_toolbar.setSpacing(8)
 
-        restore_btn = QPushButton("↩️ 恢复到事项列表")
+        restore_btn = QPushButton("恢复到事项列表")
         restore_btn.setObjectName("archiveToolBtn")
         restore_btn.setFixedHeight(34)
         restore_btn.clicked.connect(self._restore_selected_archive)
         archive_toolbar.addWidget(restore_btn)
 
-        delete_archive_btn = QPushButton("🗑️ 删除归档")
+        delete_archive_btn = QPushButton("删除归档")
         delete_archive_btn.setObjectName("archiveDelBtn")
         delete_archive_btn.setFixedHeight(34)
         delete_archive_btn.clicked.connect(self._delete_selected_archive)
@@ -857,7 +909,7 @@ class MainWindow(QMainWindow):
 
         archive_toolbar.addStretch()
 
-        refresh_btn = QPushButton("🔄 刷新")
+        refresh_btn = QPushButton("刷新")
         refresh_btn.setObjectName("archiveToolBtn")
         refresh_btn.setFixedHeight(34)
         refresh_btn.clicked.connect(self._refresh_archive)
@@ -962,7 +1014,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 16)
 
         # 数据存储设置
-        storage_group = QGroupBox("💾 数据存储")
+        storage_group = QGroupBox("数据存储")
         storage_group.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
         storage_layout = QVBoxLayout(storage_group)
 
@@ -981,12 +1033,12 @@ class MainWindow(QMainWindow):
 
         # 选择路径按钮
         btn_layout = QHBoxLayout()
-        change_btn = QPushButton("📂 更改存储位置")
+        change_btn = QPushButton("更改存储位置")
         change_btn.setObjectName("settingsBtn")
         change_btn.clicked.connect(self._change_db_path)
         btn_layout.addWidget(change_btn)
 
-        reset_btn = QPushButton("↩️ 恢复默认位置")
+        reset_btn = QPushButton("恢复默认位置")
         reset_btn.setObjectName("settingsBtn2")
         reset_btn.clicked.connect(self._reset_db_path)
         btn_layout.addWidget(reset_btn)
@@ -1003,7 +1055,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(storage_group)
 
         # 休息提醒设置
-        rest_group = QGroupBox("🐱 休息提醒")
+        rest_group = QGroupBox("休息提醒")
         rest_group.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
         rest_layout = QVBoxLayout(rest_group)
 
@@ -1086,7 +1138,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(rest_group)
 
         # 关于信息
-        about_group = QGroupBox("ℹ️ 关于")
+        about_group = QGroupBox("关于")
         about_group.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
         about_layout = QVBoxLayout(about_group)
         about_label = QLabel(
@@ -1271,17 +1323,17 @@ class MainWindow(QMainWindow):
         # 托盘菜单
         tray_menu = QMenu()
 
-        show_action = QAction("📌 显示主窗口", self)
+        show_action = QAction("显示主窗口", self)
         show_action.triggered.connect(self.show)
         tray_menu.addAction(show_action)
 
-        add_action = QAction("➕ 新建事项", self)
+        add_action = QAction("新建事项", self)
         add_action.triggered.connect(self._add_event)
         tray_menu.addAction(add_action)
 
         tray_menu.addSeparator()
 
-        quit_action = QAction("❌ 退出", self)
+        quit_action = QAction("退出", self)
         quit_action.triggered.connect(self._quit_app)
         tray_menu.addAction(quit_action)
 
@@ -1315,7 +1367,7 @@ class MainWindow(QMainWindow):
                 return
             self.db.add_event(**data)
             self._refresh_event_list()
-            self.statusBar().showMessage(f"✅ 已添加事项: {data['title']}", 3000)
+            self.statusBar().showMessage(f"已添加事项: {data['title']}", 3000)
 
     def _edit_event(self, event_id=None):
         """编辑事件"""
@@ -1341,7 +1393,7 @@ class MainWindow(QMainWindow):
             if data.get('planned_start') != event_data.get('planned_start'):
                 self.notification_mgr.reset_notification(event_id)
             self._refresh_event_list()
-            self.statusBar().showMessage(f"✅ 已更新事项: {data['title']}", 3000)
+            self.statusBar().showMessage(f"已更新事项: {data['title']}", 3000)
 
     def _duplicate_event(self, event_id):
         """复制事件（弹出编辑对话框让用户确认）"""
@@ -1371,7 +1423,7 @@ class MainWindow(QMainWindow):
             # 同步刷新看板
             if hasattr(self, 'kanban_tab'):
                 self.kanban_tab.refresh()
-            self.statusBar().showMessage(f"✅ 已复制事项: {data['title']}", 3000)
+            self.statusBar().showMessage(f"已复制事项: {data['title']}", 3000)
 
     def _delete_event(self):
         """删除事件"""
@@ -1403,7 +1455,7 @@ class MainWindow(QMainWindow):
             # 同步刷新看板
             if hasattr(self, 'kanban_tab'):
                 self.kanban_tab.refresh()
-            self.statusBar().showMessage(f"🗑️ 已删除事项: {title}", 3000)
+            self.statusBar().showMessage(f"已删除事项: {title}", 3000)
 
     def _delete_event_by_id(self, event_id):
         """根据ID删除事件（从看板右键菜单调用）"""
@@ -1424,7 +1476,7 @@ class MainWindow(QMainWindow):
             self._refresh_event_list()
             if hasattr(self, 'kanban_tab'):
                 self.kanban_tab.refresh()
-            self.statusBar().showMessage(f"🗑️ 已删除事项: {event_data['title']}", 3000)
+            self.statusBar().showMessage(f"已删除事项: {event_data['title']}", 3000)
 
     def _show_event_list_context_menu(self, pos):
         """事项列表右键菜单"""
@@ -1456,11 +1508,11 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        edit_action = menu.addAction("✏️ 编辑事项")
+        edit_action = menu.addAction("编辑事项")
         menu.addSeparator()
-        copy_action = menu.addAction("📋 复制事件")
+        copy_action = menu.addAction("复制事件")
         menu.addSeparator()
-        delete_action = menu.addAction("🗑 删除事项")
+        delete_action = menu.addAction("删除事项")
 
         action = menu.exec_(self.event_list.mapToGlobal(pos))
         if action == edit_action:
@@ -1503,7 +1555,7 @@ class MainWindow(QMainWindow):
                 self.db.archive_event(eid)
             self._refresh_event_list()
             self._refresh_archive()
-            self.statusBar().showMessage(f"📦 已归档 {len(ids)} 个事项", 3000)
+            self.statusBar().showMessage(f"已归档 {len(ids)} 个事项", 3000)
 
     def _batch_start(self):
         """批量开始计时"""
@@ -1513,7 +1565,7 @@ class MainWindow(QMainWindow):
             return
         for eid in ids:
             self._on_start_timer(eid)
-        self.statusBar().showMessage(f"▶ 已开始 {len(ids)} 个事项的计时", 3000)
+        self.statusBar().showMessage(f"已开始 {len(ids)} 个事项的计时", 3000)
 
     def _batch_pause(self):
         """批量暂停计时"""
@@ -1523,7 +1575,7 @@ class MainWindow(QMainWindow):
             return
         for eid in ids:
             self._on_stop_timer(eid)
-        self.statusBar().showMessage(f"⏸ 已暂停 {len(ids)} 个事项的计时", 3000)
+        self.statusBar().showMessage(f"已暂停 {len(ids)} 个事项的计时", 3000)
 
     def _batch_complete(self):
         """批量完成并归档"""
@@ -1532,13 +1584,13 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "提示", "请先选择事项（可 Ctrl+点击多选）")
             return
         reply = QMessageBox.question(
-            self, "✓ 批量完成确认",
+            self, "批量完成确认",
             f"确定要完成并归档选中的 {len(ids)} 个事项吗？",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
         if reply == QMessageBox.Yes:
             for eid in ids:
                 self._on_complete_event(eid)
-            self.statusBar().showMessage(f"✓ 已完成并归档 {len(ids)} 个事项", 3000)
+            self.statusBar().showMessage(f"已完成并归档 {len(ids)} 个事项", 3000)
 
     def _refresh_event_list(self):
         """刷新事件列表"""
@@ -1552,9 +1604,9 @@ class MainWindow(QMainWindow):
             "low": ("低优先", "#27ae60", "#eafaf1")
         }
         status_labels = {
-            "pending": ("⏳ 待开始", "#95a5a6"),
-            "in_progress": ("▶ 进行中", "#27ae60"),
-            "completed": ("✅ 已完成", "#3498db")
+            "pending": ("待开始", "#95a5a6"),
+            "in_progress": ("进行中", "#27ae60"),
+            "completed": ("已完成", "#3498db")
         }
 
         for event in events:
@@ -1740,7 +1792,7 @@ class MainWindow(QMainWindow):
         self.card_list.clear()
         for event_id, card in self.sticky_cards.items():
             item = QListWidgetItem()
-            item.setText(f"📌 {card.event_data.get('title', '未命名')}")
+            item.setText(f"[卡片] {card.event_data.get('title', '未命名')}")
             item.setData(Qt.UserRole, event_id)
             self.card_list.addItem(item)
 
@@ -2109,7 +2161,7 @@ class MainWindow(QMainWindow):
 
         total_diff = 0
         on_time_count = 0
-        priority_map = {"high": "🔴 高", "medium": "🟡 中", "low": "🟢 低"}
+        priority_map = {"high": "高", "medium": "中", "low": "低"}
         status_map = {"archived": "已归档", "completed": "已完成"}
 
         # 获取看板名称映射
@@ -2419,11 +2471,11 @@ class MainWindow(QMainWindow):
                 self.db.update_event_completed_at(event_id, new_dt)
                 self.db.update_event_archive_note(event_id, new_note)
                 self._refresh_archive()
-                self.statusBar().showMessage("✅ 已更新归档信息", 3000)
+                self.statusBar().showMessage("已更新归档信息", 3000)
         except Exception as e:
             import traceback
             traceback.print_exc()
-            self.statusBar().showMessage(f"❌ 打开详情失败: {e}", 0)
+            self.statusBar().showMessage(f"打开详情失败: {e}", 0)
 
     def _get_selected_archive_ids(self):
         """获取归档表格中选中的事件 ID 列表"""
@@ -2493,7 +2545,7 @@ class MainWindow(QMainWindow):
                 self.notification_mgr.reset_notification(event_id)
             self._refresh_event_list()
             self.kanban_tab.refresh()
-            self.statusBar().showMessage(f"✅ 已更新事项: {data['title']}", 3000)
+            self.statusBar().showMessage(f"已更新事项: {data['title']}", 3000)
 
     def _on_kanban_status_changed(self):
         """看板拖拽导致状态变更，刷新事项列表"""
@@ -2517,7 +2569,7 @@ class MainWindow(QMainWindow):
             self._refresh_event_list()
             if hasattr(self.kanban_tab, 'current_board_id') and self.kanban_tab.current_board_id:
                 self.kanban_tab.refresh()
-            self.statusBar().showMessage(f"✅ 已创建事项: {data['title']}", 3000)
+            self.statusBar().showMessage(f"已创建事项: {data['title']}", 3000)
 
     # ==================== 标签页切换 ====================
 

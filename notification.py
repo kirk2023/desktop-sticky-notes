@@ -102,7 +102,7 @@ class NotificationManager:
 
                     # 发送系统通知
                     send_windows_notification(
-                        "📋 事项提醒",
+                        "事项提醒",
                         f"「{event.get('title', '未命名')}」到达计划开始时间！\n"
                         f"计划时间: {planned_start}\n"
                         f"是否将其 Pin 到桌面？"

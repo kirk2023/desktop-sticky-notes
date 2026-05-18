@@ -81,7 +81,7 @@ class StickyNoteCard(QWidget):
         title_bar.addWidget(self.title_label, 1)
 
         # 置顶切换按钮
-        self.pin_top_btn = QPushButton("📌")
+        self.pin_top_btn = QPushButton("TOP")
         self.pin_top_btn.setObjectName("pinTopBtn")
         self.pin_top_btn.setFixedSize(24, 24)
         self.pin_top_btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -133,12 +133,12 @@ class StickyNoteCard(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(8)
 
-        self.start_btn = QPushButton("▶ 开始")
+        self.start_btn = QPushButton("开始")
         self.start_btn.setObjectName("startBtn")
         self.start_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.start_btn.clicked.connect(self._on_start_clicked)
 
-        self.complete_btn = QPushButton("✓ 完成")
+        self.complete_btn = QPushButton("完成")
         self.complete_btn.setObjectName("completeBtn")
         self.complete_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.complete_btn.clicked.connect(self._on_complete_clicked)
@@ -459,11 +459,11 @@ class StickyNoteCard(QWidget):
                 time_str = dt.toString("HH:mm")
                 date_str = dt.toString("MM月dd日")
                 self.time_info_label.setText(
-                    f"📅 {date_str}  ⏰ {time_str}  ⏱ 计划 {duration} 分钟")
+                    f"{date_str} {time_str} 计划 {duration} 分钟")
             except Exception:
-                self.time_info_label.setText(f"⏱ 计划 {duration} 分钟")
+                self.time_info_label.setText(f"计划 {duration} 分钟")
         else:
-            self.time_info_label.setText(f"⏱ 计划 {duration} 分钟")
+            self.time_info_label.setText(f"计划 {duration} 分钟")
 
     def _on_start_clicked(self):
         """点击开始/暂停按钮"""
@@ -471,7 +471,7 @@ class StickyNoteCard(QWidget):
             # 开始或恢复计时
             self.is_timing = True
             self.session_start_time = QDateTime.currentDateTime()
-            self.start_btn.setText("⏸ 暂停")
+            self.start_btn.setText("暂停")
             self.start_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #e67e22;
@@ -499,7 +499,7 @@ class StickyNoteCard(QWidget):
                 session_secs = self.session_start_time.secsTo(QDateTime.currentDateTime())
                 self.accumulated_seconds += session_secs
                 self.session_start_time = None
-            self.start_btn.setText("▶ 继续")
+            self.start_btn.setText("继续")
             self.start_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #27ae60;
@@ -522,7 +522,7 @@ class StickyNoteCard(QWidget):
         if not self.is_timing:
             self.is_timing = True
             self.session_start_time = QDateTime.currentDateTime()
-            self.start_btn.setText("⏸ 暂停")
+            self.start_btn.setText("暂停")
             self.start_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #e67e22;
@@ -549,7 +549,7 @@ class StickyNoteCard(QWidget):
                 session_secs = self.session_start_time.secsTo(QDateTime.currentDateTime())
                 self.accumulated_seconds += session_secs
                 self.session_start_time = None
-            self.start_btn.setText("▶ 继续")
+            self.start_btn.setText("继续")
             self.start_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #27ae60;
@@ -586,7 +586,7 @@ class StickyNoteCard(QWidget):
 
         if self.is_always_on_top:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
-            self.pin_top_btn.setText("📌")
+            self.pin_top_btn.setText("TOP")
             self.pin_top_btn.setToolTip("当前: 始终置顶 | 点击取消置顶")
         else:
             # 使用 Window 类型而非 Tool，确保可以被其他窗口遮挡
@@ -640,14 +640,14 @@ class StickyNoteCard(QWidget):
                 session_secs = int((now - start).total_seconds())
                 self.session_start_time = QDateTime.currentDateTime().addSecs(-session_secs)
                 self.is_timing = True
-                self.start_btn.setText("⏸ 暂停")
+                self.start_btn.setText("暂停")
                 self.complete_btn.setEnabled(True)
                 self.timer.start(1000)
             except (ValueError, TypeError):
                 pass
         elif accumulated_seconds > 0:
             # 有累计时间但没有进行中的会话（之前暂停过）
-            self.start_btn.setText("▶ 继续")
+            self.start_btn.setText("继续")
             self.complete_btn.setEnabled(True)
 
     def show_completion_summary(self, planned_minutes, actual_seconds):

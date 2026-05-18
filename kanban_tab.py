@@ -207,11 +207,11 @@ class KanbanCard(QFrame):
                 color: white;
             }
         """)
-        edit_action = menu.addAction("✏️ 编辑事项")
-        pin_action = menu.addAction("📌 Pin 到桌面")
+        edit_action = menu.addAction("编辑事项")
+        pin_action = menu.addAction("Pin到桌面")
         menu.addSeparator()
-        copy_action = menu.addAction("📋 复制事件")
-        delete_action = menu.addAction("🗑 删除事项")
+        copy_action = menu.addAction("复制事件")
+        delete_action = menu.addAction("删除事项")
 
         action = menu.exec_(self.mapToGlobal(pos))
         if action == edit_action:
@@ -1400,7 +1400,7 @@ class KanbanTab(QWidget):
         self.refresh_btn.clicked.connect(self.refresh)
         toolbar.addWidget(self.refresh_btn)
 
-        self.create_event_btn = QPushButton("➕ 新建事件")
+        self.create_event_btn = QPushButton("新建事件")
         self.create_event_btn.setFont(QFont("Microsoft YaHei", 11))
         self.create_event_btn.setCursor(Qt.PointingHandCursor)
         self.create_event_btn.clicked.connect(self._on_create_event)

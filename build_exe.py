@@ -65,6 +65,7 @@ def build_exe():
         '--onefile',
         '--windowed',
         '--noconfirm',
+        '--icon=logo.ico',
         '--distpath=output',
         '--workpath=build',
         '--specpath=.',
@@ -74,7 +75,6 @@ def build_exe():
         '--hidden-import=PyQt5.QtWidgets',
         '--add-data=logo.png;.',
         '--add-data=logo.ico;.',
-        '--add-data=rest_cat.png;.',
         'main.py',
     ]
 
