@@ -1,0 +1,23 @@
+# Build output
+desktop_sticky_notes/output/
+desktop_sticky_notes/build/
+desktop_sticky_notes/dist/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Database & user data
+appdata/
+.uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,38 @@
+# Build outputs
+output/
+build/
+dist/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyInstaller
+*.spec
+
+# Logs
+*.log
+error.log
+
+# Database (user data)
+*.db
+
+# Icon generator scripts (not needed in repo)
+create_icon.py
+generate_icons.py
+app_icon.svg
+
+# Multiple size icons (keep only logo.png and logo.ico)
+logo_*.png
