@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 # 数据库版本号（表结构变更时递增）
-DB_VERSION = 12
+DB_VERSION = 14
 
 # 配置文件路径
 CONFIG_FILE = os.path.join(
@@ -47,8 +47,10 @@ class Database:
         self.db_path = db_path
         self.conn = None
         self._connect()
-        self._migrate()
+        # 先建表再迁移：否则全新数据库上 ALTER 会因表不存在而静默失败
         self._create_tables()
+        self._migrate()
+        self._auto_backup()
 
     @staticmethod
     def _get_db_path():
@@ -213,11 +215,50 @@ class Database:
                 except Exception:
                     pass
 
+            # v12 -> v13: kanban_lanes 表加 role 角色（start/progress/done），替代关键词猜测
+            if current_version < 13:
+                try:
+                    cursor.execute("ALTER TABLE kanban_lanes ADD COLUMN role TEXT DEFAULT NULL")
+                except Exception:
+                    pass
+                self._backfill_lane_roles(cursor)
+
+            # v13 -> v14: kanban_boards 表加 closed_at 结项时间（看板生命周期闭环）
+            if current_version < 14:
+                try:
+                    cursor.execute("ALTER TABLE kanban_boards ADD COLUMN closed_at TEXT DEFAULT NULL")
+                except Exception:
+                    pass
+
             # 更新版本号
             cursor.execute("DELETE FROM _db_version")
             cursor.execute("INSERT INTO _db_version (version) VALUES (?)", (DB_VERSION,))
             self.conn.commit()
             print(f"[DB] 迁移完成")
+
+    @staticmethod
+    def _backfill_lane_roles(cursor):
+        """为已有甬道按位置回填角色：首列 start，末列 done，中间 progress"""
+        try:
+            cursor.execute("SELECT DISTINCT board_id FROM kanban_lanes")
+            board_ids = [r['board_id'] for r in cursor.fetchall()]
+            for bid in board_ids:
+                cursor.execute(
+                    "SELECT id FROM kanban_lanes WHERE board_id=? ORDER BY sort_order ASC", (bid,))
+                lane_ids = [r['id'] for r in cursor.fetchall()]
+                n = len(lane_ids)
+                for i, lid in enumerate(lane_ids):
+                    if n == 1:
+                        role = 'start'
+                    elif i == 0:
+                        role = 'start'
+                    elif i == n - 1:
+                        role = 'done'
+                    else:
+                        role = 'progress'
+                    cursor.execute("UPDATE kanban_lanes SET role=? WHERE id=?", (role, lid))
+        except Exception as e:
+            print(f"[DB] 甬道角色回填失败（可忽略）: {e}")
 
     def _create_tables(self):
         """创建数据表"""
@@ -234,6 +275,11 @@ class Database:
                 status TEXT DEFAULT 'pending',
                 priority TEXT DEFAULT 'medium',
                 color TEXT DEFAULT '#FFF9C4',
+                board_id INTEGER DEFAULT NULL,
+                completed_at TEXT DEFAULT NULL,
+                archive_note TEXT DEFAULT '',
+                actual_start_at TEXT DEFAULT NULL,
+                actual_duration_minutes INTEGER DEFAULT NULL,
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
             )
@@ -275,6 +321,7 @@ class Database:
                 sort_order INTEGER DEFAULT 0,
                 is_default INTEGER DEFAULT 0,
                 deadline TEXT DEFAULT NULL,
+                closed_at TEXT DEFAULT NULL,
                 created_at TEXT DEFAULT (datetime('now', 'localtime'))
             )
         """)
@@ -287,6 +334,7 @@ class Database:
                 name TEXT NOT NULL,
                 sort_order INTEGER DEFAULT 0,
                 color TEXT DEFAULT '#ecf0f1',
+                role TEXT DEFAULT NULL,
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (board_id) REFERENCES kanban_boards(id)
             )
@@ -594,6 +642,64 @@ class Database:
 
         return total
 
+    def get_elapsed_seconds_map(self, event_ids):
+        """
+        批量获取多个事件的累计耗时（秒），避免列表渲染时 N+1 查询
+
+        Returns:
+            dict {event_id: seconds}，未有任何耗时的 ID 对应 0
+        """
+        ids = [i for i in event_ids if i is not None]
+        if not ids:
+            return {}
+        placeholders = ",".join(["?"] * len(ids))
+        result = {eid: 0 for eid in ids}
+        cursor = self.conn.cursor()
+
+        cursor.execute(f"""
+            SELECT event_id, COALESCE(SUM(actual_duration_seconds), 0) as total
+            FROM timer_records
+            WHERE event_id IN ({placeholders}) AND actual_end IS NOT NULL
+            GROUP BY event_id
+        """, ids)
+        for row in cursor.fetchall():
+            result[row['event_id']] = row['total'] or 0
+
+        # 加上正在进行的会话从 actual_start 到现在的时间
+        cursor.execute(f"""
+            SELECT event_id, actual_start FROM timer_records
+            WHERE event_id IN ({placeholders}) AND actual_end IS NULL
+        """, ids)
+        now_dt = datetime.now()
+        for row in cursor.fetchall():
+            if row['actual_start']:
+                try:
+                    start_dt = datetime.strptime(row['actual_start'], "%Y-%m-%d %H:%M:%S")
+                    result[row['event_id']] += max(int((now_dt - start_dt).total_seconds()), 0)
+                except (ValueError, TypeError):
+                    pass
+        return result
+
+    def get_active_session_map(self, event_ids):
+        """
+        批量获取正在计时的会话
+
+        Returns:
+            dict {event_id: actual_start_str}，仅包含有进行中会话的事件
+        """
+        ids = [i for i in event_ids if i is not None]
+        if not ids:
+            return {}
+        placeholders = ",".join(["?"] * len(ids))
+        cursor = self.conn.cursor()
+        cursor.execute(f"""
+            SELECT event_id, MAX(actual_start) as actual_start
+            FROM timer_records
+            WHERE event_id IN ({placeholders}) AND actual_end IS NULL
+            GROUP BY event_id
+        """, ids)
+        return {row['event_id']: row['actual_start'] for row in cursor.fetchall()}
+
     def get_current_session_info(self, event_id):
         """
         获取当前正在进行的会话信息
@@ -839,9 +945,12 @@ class Database:
         return board_id
 
     def get_boards(self):
-        """获取所有看板，按 sort_order 排序"""
+        """获取所有看板：未结项在前（按 sort_order），已结项沉底"""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM kanban_boards ORDER BY sort_order ASC")
+        cursor.execute("""
+            SELECT * FROM kanban_boards
+            ORDER BY CASE WHEN closed_at IS NULL THEN 0 ELSE 1 END, sort_order ASC
+        """)
         return [dict(row) for row in cursor.fetchall()]
 
     def get_board(self, board_id):
@@ -868,6 +977,14 @@ class Database:
         cursor.execute(
             f"UPDATE kanban_boards SET {', '.join(updates)} WHERE id=?",
             values)
+        self.conn.commit()
+
+    def set_board_closed(self, board_id, closed=True):
+        """标记看板结项/重新打开"""
+        cursor = self.conn.cursor()
+        closed_at = datetime.now().strftime("%Y-%m-%d %H:%M") if closed else None
+        cursor.execute("UPDATE kanban_boards SET closed_at=? WHERE id=?",
+                       (closed_at, board_id))
         self.conn.commit()
 
     def delete_board(self, board_id):
@@ -1023,10 +1140,17 @@ class Database:
             lanes = [("待办", "#fce4ec"), ("进行中", "#fff8e1"), ("已完成", "#e0f2f1")]
 
         new_lane_ids = []
+        lane_count = len(lanes)
         for i, (name, color) in enumerate(lanes):
+            if i == 0:
+                role = 'start'
+            elif i == lane_count - 1 and lane_count > 1:
+                role = 'done'
+            else:
+                role = 'progress'
             cursor.execute(
-                "INSERT INTO kanban_lanes (board_id, name, sort_order, color) VALUES (?, ?, ?, ?)",
-                (board_id, name, i, color))
+                "INSERT INTO kanban_lanes (board_id, name, sort_order, color, role) VALUES (?, ?, ?, ?, ?)",
+                (board_id, name, i, color, role))
             new_lane_ids.append(cursor.lastrowid)
 
         new_lane_count = len(new_lane_ids)
@@ -1056,7 +1180,7 @@ class Database:
         self.conn.commit()
 
     def get_board_stats(self, board_id):
-        """获取看板统计信息：甬道数、事件数"""
+        """获取看板统计信息：甬道数、事件数、完成进度"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT COUNT(*) as cnt FROM kanban_lanes WHERE board_id=?", (board_id,))
         lane_count = cursor.fetchone()['cnt']
@@ -1065,8 +1189,187 @@ class Database:
             SELECT COUNT(DISTINCT kli.event_id) as cnt
             FROM kanban_lane_items kli
             JOIN kanban_lanes kl ON kl.id = kli.lane_id
-            WHERE kl.board_id=?
+            JOIN events e ON e.id = kli.event_id
+            WHERE kl.board_id=? AND e.status != 'archived'
         """, (board_id,))
         event_count = cursor.fetchone()['cnt']
 
-        return {"lane_count": lane_count, "event_count": event_count}
+        cursor.execute("""
+            SELECT status, COUNT(*) as cnt FROM events
+            WHERE board_id=? AND status != 'archived'
+            GROUP BY status
+        """, (board_id,))
+        status_counts = {row['status']: row['cnt'] for row in cursor.fetchall()}
+        total_count = sum(status_counts.values())
+        completed_count = status_counts.get('completed', 0)
+        in_progress_count = status_counts.get('in_progress', 0)
+
+        return {
+            "lane_count": lane_count,
+            "event_count": event_count,
+            "total_count": total_count,
+            "completed_count": completed_count,
+            "in_progress_count": in_progress_count,
+        }
+
+    def set_lane_role(self, lane_id, role):
+        """设置甬道角色（start/progress/done/None），用于事件状态联动"""
+        if role not in ('start', 'progress', 'done', None):
+            return
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE kanban_lanes SET role=? WHERE id=?", (role, lane_id))
+        self.conn.commit()
+
+    # ==================== 投入统计（图表） ====================
+
+    def get_weekly_minutes(self, weeks=8):
+        """
+        获取最近 N 周每周的实际投入分钟数（按计时会话的实际开始日期归属）
+
+        Returns:
+            list [(label, minutes)]，label 为该周一的 MM/DD
+        """
+        from datetime import timedelta
+
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT actual_start, COALESCE(actual_duration_seconds, 0) as secs
+            FROM timer_records
+            WHERE actual_start >= ?
+        """, ((datetime.now() - timedelta(weeks=weeks)).strftime("%Y-%m-%d"),))
+
+        # 以周一为每周起点
+        week_minutes = {}
+        for row in cursor.fetchall():
+            try:
+                dt = datetime.strptime(row['actual_start'], "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                continue
+            monday = (dt - timedelta(days=dt.weekday())).date()
+            key = monday.strftime("%m/%d")
+            week_minutes[key] = week_minutes.get(key, 0) + row['secs'] / 60.0
+
+        result = []
+        today = datetime.now().date()
+        this_monday = today - timedelta(days=today.weekday())
+        for i in range(weeks - 1, -1, -1):
+            monday = this_monday - timedelta(weeks=i)
+            label = monday.strftime("%m/%d")
+            result.append((label, round(week_minutes.get(label, 0), 1)))
+        return result
+
+    def get_board_minutes(self):
+        """
+        按看板统计实际投入分钟数
+
+        Returns:
+            list [(board_name, minutes)]，按投入降序
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT COALESCE(b.name, '未分配') as name,
+                   SUM(tr.actual_duration_seconds) as secs
+            FROM timer_records tr
+            LEFT JOIN events e ON e.id = tr.event_id
+            LEFT JOIN kanban_boards b ON b.id = e.board_id
+            GROUP BY name
+            ORDER BY secs DESC
+        """)
+        return [(row['name'], round((row['secs'] or 0) / 60.0, 1))
+                for row in cursor.fetchall()]
+
+    def get_today_minutes(self):
+        """获取今天的实际投入分钟数（含进行中会话）"""
+        today = datetime.now().strftime("%Y-%m-%d")
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT COALESCE(SUM(actual_duration_seconds), 0) as total
+            FROM timer_records
+            WHERE actual_start LIKE ? AND actual_end IS NOT NULL
+        """, (today + '%',))
+        total = cursor.fetchone()['total'] or 0
+
+        cursor.execute("""
+            SELECT actual_start FROM timer_records
+            WHERE actual_start LIKE ? AND actual_end IS NULL
+        """, (today + '%',))
+        now_dt = datetime.now()
+        for row in cursor.fetchall():
+            try:
+                start_dt = datetime.strptime(row['actual_start'], "%Y-%m-%d %H:%M:%S")
+                total += max(int((now_dt - start_dt).total_seconds()), 0)
+            except (ValueError, TypeError):
+                pass
+        return round(total / 60.0, 1)
+
+    # ==================== 导出与备份 ====================
+
+    def export_to_json(self, file_path):
+        """
+        将全部数据导出为 JSON 文件
+
+        Returns:
+            导出的事件数量，失败返回 None
+        """
+        tables = ["events", "timer_records", "kanban_boards", "kanban_lanes",
+                  "kanban_lane_items", "card_positions", "app_settings"]
+        data = {"exported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "db_version": DB_VERSION}
+        cursor = self.conn.cursor()
+        for table in tables:
+            try:
+                cursor.execute(f"SELECT * FROM {table}")
+                data[table] = [dict(row) for row in cursor.fetchall()]
+            except Exception:
+                data[table] = []
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return len(data.get("events", []))
+
+    def _backup_dir(self):
+        """备份目录：%APPDATA%/DesktopStickyNotes/backups"""
+        return os.path.join(os.path.dirname(CONFIG_FILE), "backups")
+
+    def backup_now(self):
+        """
+        立即备份数据库（使用 SQLite backup API，WAL 安全）
+
+        Returns:
+            备份文件路径，失败返回 None
+        """
+        try:
+            backup_dir = self._backup_dir()
+            os.makedirs(backup_dir, exist_ok=True)
+            dest = os.path.join(
+                backup_dir,
+                "sticky_notes_%s.db" % datetime.now().strftime("%Y%m%d_%H%M%S"))
+            dest_conn = sqlite3.connect(dest)
+            with dest_conn:
+                self.conn.backup(dest_conn)
+            dest_conn.close()
+            self._prune_backups(backup_dir)
+            return dest
+        except Exception as e:
+            print(f"[DB] 备份失败: {e}")
+            return None
+
+    @staticmethod
+    def _prune_backups(backup_dir, keep=7):
+        """只保留最近 keep 个备份"""
+        try:
+            files = [os.path.join(backup_dir, f) for f in os.listdir(backup_dir)
+                     if f.startswith("sticky_notes_") and f.endswith(".db")]
+            files.sort(key=os.path.getmtime, reverse=True)
+            for path in files[keep:]:
+                os.remove(path)
+        except Exception:
+            pass
+
+    def _auto_backup(self):
+        """启动时自动备份（可在设置中关闭）"""
+        try:
+            if not self.get_setting('auto_backup_enabled', True):
+                return
+            self.backup_now()
+        except Exception:
+            pass

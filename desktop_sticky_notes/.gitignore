@@ -28,6 +28,11 @@ error.log
 
 # Database (user data)
 *.db
+*.db-shm
+*.db-wal
+
+# Runtime data
+appdata/
 
 # Icon generator scripts (not needed in repo)
 create_icon.py

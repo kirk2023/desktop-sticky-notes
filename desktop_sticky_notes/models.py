@@ -1,32 +1,30 @@
 """
-数据模型定义
+Data Models
 """
 
 
 class Event:
-    """计划事项模型"""
+    """Plan Event Model"""
 
-    # 状态常量
-    STATUS_PENDING = "pending"       # 待开始
-    STATUS_IN_PROGRESS = "in_progress"  # 进行中
-    STATUS_COMPLETED = "completed"   # 已完成
-    STATUS_ARCHIVED = "archived"     # 已归档
+    STATUS_PENDING = "pending"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_COMPLETED = "completed"
+    STATUS_ARCHIVED = "archived"
 
-    # 优先级
     PRIORITY_HIGH = "high"
     PRIORITY_MEDIUM = "medium"
     PRIORITY_LOW = "low"
 
-    # 便利贴颜色
+    # Premium note colors
     COLORS = [
-        "#FFF9C4",  # 淡黄
-        "#FFCCBC",  # 淡橙
-        "#C8E6C9",  # 淡绿
-        "#BBDEFB",  # 淡蓝
-        "#E1BEE7",  # 淡紫
-        "#F8BBD0",  # 淡粉
-        "#B2EBF2",  # 淡青
-        "#D7CCC8",  # 淡棕
+        "#FEF9C4",  # Classic Yellow
+        "#FED7AA",  # Warm Orange
+        "#BBF7D0",  # Soft Green
+        "#BFDBFE",  # Sky Blue
+        "#DDD6FE",  # Lavender
+        "#FBCFE8",  # Pink
+        "#A7F3D0",  # Mint
+        "#FDE68A",  # Peach
     ]
 
     def __init__(self, id=None, title="", description="",
@@ -36,7 +34,7 @@ class Event:
         self.id = id
         self.title = title
         self.description = description
-        self.planned_start = planned_start  # datetime string "YYYY-MM-DD HH:MM"
+        self.planned_start = planned_start
         self.planned_duration_minutes = planned_duration_minutes
         self.status = status
         self.priority = priority
@@ -45,7 +43,6 @@ class Event:
 
     @property
     def planned_end(self):
-        """计算计划结束时间"""
         if self.planned_start and self.planned_duration_minutes:
             from datetime import datetime, timedelta
             try:
@@ -59,26 +56,3 @@ class Event:
     @property
     def is_active(self):
         return self.status in (self.STATUS_PENDING, self.STATUS_IN_PROGRESS)
-
-
-class TimerRecord:
-    """计时记录模型"""
-
-    def __init__(self, id=None, event_id=None,
-                 actual_start=None, actual_end=None,
-                 actual_duration_seconds=0,
-                 created_at=None):
-        self.id = id
-        self.event_id = event_id
-        self.actual_start = actual_start
-        self.actual_end = actual_end
-        self.actual_duration_seconds = actual_duration_seconds
-        self.created_at = created_at
-
-    @property
-    def actual_duration_minutes(self):
-        return round(self.actual_duration_seconds / 60, 1)
-
-    @property
-    def actual_duration_hours(self):
-        return round(self.actual_duration_seconds / 3600, 2)

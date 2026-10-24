@@ -100,12 +100,11 @@ class NotificationManager:
                     need_notify.append(event)
                     self._notified_events.add(event_id)
 
-                    # 发送系统通知
+                    # 发送系统通知（非阻塞，主窗口只更新状态栏）
                     send_windows_notification(
                         "事项提醒",
-                        f"「{event.get('title', '未命名')}」到达计划开始时间！\n"
-                        f"计划时间: {planned_start}\n"
-                        f"是否将其 Pin 到桌面？"
+                        f"「{event.get('title', '未命名')}」到达计划开始时间"
+                        f"（{planned_start}），打开应用查看详情。"
                     )
 
                     if callback:

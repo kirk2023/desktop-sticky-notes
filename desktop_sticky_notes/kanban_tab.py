@@ -2,6 +2,8 @@
 看板标签页 - 支持多看板，水平滚动甬道，支持拖拽卡片
 """
 
+from datetime import datetime, date
+
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -18,12 +20,12 @@ class KanbanCard(QFrame):
     event_delete = pyqtSignal(int)  # 删除事件信号
 
     PRIORITY_COLORS = {
-        "high": "#e74c3c",
-        "medium": "#f39c12",
-        "low": "#27ae60",
+        "high": "#DC2626",
+        "medium": "#F59E0B",
+        "low": "#059669",
     }
 
-    def __init__(self, event_data, db=None, parent=None):
+    def __init__(self, event_data, db=None, parent=None, elapsed_seconds=None):
         super().__init__(parent)
         self.event_data = event_data
         self.event_id = event_data['id']
@@ -35,10 +37,10 @@ class KanbanCard(QFrame):
         self._drag_start_pos = None
         self._zoom_level = 1.0
 
-        self._setup_ui()
+        self._setup_ui(elapsed_seconds)
         self._apply_style()
 
-    def _setup_ui(self):
+    def _setup_ui(self, elapsed_seconds=None):
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -63,7 +65,7 @@ class KanbanCard(QFrame):
         self.title_label = QLabel(self.event_data.get('title', '未命名'))
         self.title_label.setWordWrap(True)
         self.title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
-        self.title_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        self.title_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         content_layout.addWidget(self.title_label)
 
         # 计划时间和已发生时长
@@ -76,20 +78,20 @@ class KanbanCard(QFrame):
             duration_str = f"{duration / 60:.1f}小时"
         else:
             duration_str = f"{duration}分钟"
-        # 已发生时长（从数据库实时查询）
+        # 已发生时长（由调用方批量传入，避免逐卡查询；未传时回退单查）
         elapsed_text = ""
-        if self.db:
+        if elapsed_seconds is None and self.db:
             try:
-                elapsed = self.db.get_total_elapsed_seconds(self.event_id)
-                if elapsed > 0:
-                    elapsed_min = elapsed // 60
-                    if elapsed_min >= 60:
-                        elapsed_str = f"{elapsed_min // 60}小时{elapsed_min % 60}分"
-                    else:
-                        elapsed_str = f"{elapsed_min}分钟"
-                    elapsed_text = f"已用 {elapsed_str}"
+                elapsed_seconds = self.db.get_total_elapsed_seconds(self.event_id)
             except Exception:
-                pass
+                elapsed_seconds = 0
+        if elapsed_seconds and elapsed_seconds > 0:
+            elapsed_min = int(elapsed_seconds) // 60
+            if elapsed_min >= 60:
+                elapsed_str = f"{elapsed_min // 60}小时{elapsed_min % 60}分"
+            else:
+                elapsed_str = f"{elapsed_min}分钟"
+            elapsed_text = f"已用 {elapsed_str}"
         # 组合显示
         if planned_start:
             try:
@@ -107,7 +109,7 @@ class KanbanCard(QFrame):
 
         self.time_label = QLabel(time_text)
         self.time_label.setFont(QFont("Microsoft YaHei", 9))
-        self.time_label.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
+        self.time_label.setStyleSheet("color: #78716C; background: transparent; border: none;")
         content_layout.addWidget(self.time_label)
 
         main_layout.addWidget(content, 1)
@@ -116,15 +118,16 @@ class KanbanCard(QFrame):
         self.setStyleSheet("""
             KanbanCard {
                 background-color: #ffffff;
-                border: 1px solid #e8e8e8;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
+                border-left: none;
+            }
+            KanbanCard:hover {
+                border-color: #FCD34D;
+                background-color: #FFFBEB;
             }
         """)
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(4)
-        shadow.setOffset(1, 1)
-        shadow.setColor(QColor(0, 0, 0, 30))
-        self.setGraphicsEffect(shadow)
+        self.setGraphicsEffect(None)
 
     def apply_zoom(self, zoom_level):
         """缩放卡片内的字体和间距"""
@@ -145,18 +148,14 @@ class KanbanCard(QFrame):
     def enterEvent(self, event):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(10)
-        shadow.setOffset(2, 2)
-        shadow.setColor(QColor(0, 0, 0, 50))
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 25))
         self.setGraphicsEffect(shadow)
         self.setCursor(Qt.OpenHandCursor)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(4)
-        shadow.setOffset(1, 1)
-        shadow.setColor(QColor(0, 0, 0, 30))
-        self.setGraphicsEffect(shadow)
+        self.setGraphicsEffect(None)
         super().leaveEvent(event)
 
     def mousePressEvent(self, event):
@@ -192,19 +191,25 @@ class KanbanCard(QFrame):
         menu.setStyleSheet("""
             QMenu {
                 background-color: #ffffff;
-                border: 1px solid #dcdde1;
-                border-radius: 6px;
+                border: 1px solid #E7E5E4;
+                border-radius: 10px;
                 padding: 6px;
                 font-family: "Microsoft YaHei";
                 font-size: 12px;
             }
             QMenu::item {
-                padding: 6px 24px;
+                padding: 8px 24px;
                 border-radius: 4px;
+                color: #1C1917;
             }
             QMenu::item:selected {
-                background-color: #3498db;
-                color: white;
+                background-color: #FEF3C7;
+                color: #92400E;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #F1F5F9;
+                margin: 4px 12px;
             }
         """)
         edit_action = menu.addAction("编辑事项")
@@ -242,7 +247,7 @@ class KanbanLane(QWidget):
         self.lane_data = lane_data
         self.lane_id = lane_data['id']
         self.lane_name = lane_data['name']
-        self.lane_color = lane_data.get('color', '#ecf0f1')
+        self.lane_color = lane_data.get('color', '#F1F5F9')
         self.db = db
         self.board_id = board_id
         self.setAcceptDrops(True)
@@ -300,7 +305,7 @@ class KanbanLane(QWidget):
                 background: transparent;
             }
             QScrollBar::handle:vertical {
-                background: #cccccc;
+                background: #CBD5E1;
                 border-radius: 3px;
                 min-height: 20px;
             }
@@ -318,6 +323,21 @@ class KanbanLane(QWidget):
         self.scroll_area.setWidget(self.cards_container)
         container_layout.addWidget(self.scroll_area, 1)
 
+        # 行内快速添加（甬道底部）
+        self.quick_add_btn = QPushButton("+ 添加事项")
+        self.quick_add_btn.setObjectName("quickAddBtn")
+        self.quick_add_btn.setCursor(Qt.PointingHandCursor)
+        self.quick_add_btn.clicked.connect(self._show_quick_add_input)
+        container_layout.addWidget(self.quick_add_btn)
+
+        self.quick_add_input = QLineEdit()
+        self.quick_add_input.setPlaceholderText("输入标题，回车创建，Esc 取消…")
+        self.quick_add_input.setObjectName("quickAddInput")
+        self.quick_add_input.hide()
+        self.quick_add_input.installEventFilter(self)
+        self.quick_add_input.returnPressed.connect(self._quick_add_event)
+        container_layout.addWidget(self.quick_add_input)
+
         main_layout.addWidget(self.container)
 
         # 右键菜单
@@ -326,9 +346,9 @@ class KanbanLane(QWidget):
 
     def _apply_style(self):
         shadow = QGraphicsDropShadowEffect(self.container)
-        shadow.setBlurRadius(6)
-        shadow.setOffset(1, 2)
-        shadow.setColor(QColor(0, 0, 0, 25))
+        shadow.setBlurRadius(4)
+        shadow.setOffset(0, 1)
+        shadow.setColor(QColor(0, 0, 0, 12))
         self.container.setGraphicsEffect(shadow)
 
     def apply_zoom(self, zoom_level):
@@ -361,7 +381,7 @@ class KanbanLane(QWidget):
         g = int(color[3:5], 16) if len(color) >= 7 else 200
         b = int(color[5:7], 16) if len(color) >= 7 else 200
         brightness = (r * 299 + g * 587 + b * 114) / 1000
-        text_color = "#ffffff" if brightness < 160 else "#2c3e50"
+        text_color = "#ffffff" if brightness < 160 else "#1C1917"
         count_bg = "rgba(255,255,255,0.2)" if brightness < 160 else "rgba(0,0,0,0.08)"
         count_color = "rgba(255,255,255,0.8)" if brightness < 160 else "rgba(0,0,0,0.5)"
 
@@ -369,20 +389,19 @@ class KanbanLane(QWidget):
         self.container.setStyleSheet(f"""
             #laneContainer {{
                 background-color: #ffffff;
-                border: 1px solid #d0d0d0;
-                border-radius: 8px;
+                border: 1px solid #E7E5E4;
+                border-radius: 10px;
             }}
             #laneHeader {{
                 background-color: {color};
                 border: none;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
             }}
             #titleLabel {{
                 color: {text_color};
                 background: transparent;
                 border: none;
-                padding: 2px;
             }}
             #countLabel {{
                 color: {count_color};
@@ -391,6 +410,29 @@ class KanbanLane(QWidget):
                 border-radius: 10px;
                 padding: 1px 8px;
             }}
+            #quickAddBtn {{
+                background-color: transparent;
+                color: #78716C;
+                border: 1px dashed #D6D3D1;
+                border-radius: 6px;
+                padding: 6px;
+                margin: 0 8px 8px 8px;
+                font-size: 11px;
+            }}
+            #quickAddBtn:hover {{
+                background-color: #FFFBEB;
+                border-color: #F59E0B;
+                color: #D97706;
+            }}
+            #quickAddInput {{
+                background-color: #F8FAFC;
+                color: #1C1917;
+                border: 1px solid #F59E0B;
+                border-radius: 6px;
+                padding: 4px 8px;
+                margin: 0 8px 8px 8px;
+                font-size: 12px;
+            }}
         """)
 
     def _show_context_menu(self, pos):
@@ -398,7 +440,7 @@ class KanbanLane(QWidget):
         menu.setStyleSheet("""
             QMenu {
                 background-color: #ffffff;
-                border: 1px solid #e0e0e0;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 4px;
                 font-family: "Microsoft YaHei";
@@ -409,12 +451,27 @@ class KanbanLane(QWidget):
                 border-radius: 4px;
             }
             QMenu::item:selected {
-                background-color: #3498db;
+                background-color: #F59E0B;
                 color: white;
             }
         """)
 
         rename_action = menu.addAction("重命名甬道")
+        role_menu = menu.addMenu("设置甬道角色")
+        role_actions = {}
+        current_role = None
+        for lane in self.db.get_kanban_lanes(self.board_id):
+            if lane['id'] == self.lane_id:
+                current_role = lane.get('role')
+                break
+        for role, label in [('start', "起始（待办）"),
+                            ('progress', "进行中"),
+                            ('done', "完成"),
+                            (None, "未指定")]:
+            prefix = "✓ " if current_role == role else ""
+            act = role_menu.addAction(prefix + label)
+            role_actions[act] = role
+        menu.addSeparator()
         delete_action = menu.addAction("删除甬道")
 
         action = menu.exec_(self.header.mapToGlobal(pos))
@@ -422,6 +479,8 @@ class KanbanLane(QWidget):
             self._rename_lane()
         elif action == delete_action:
             self._delete_lane()
+        elif action in role_actions:
+            self.db.set_lane_role(self.lane_id, role_actions[action])
 
     def _rename_lane(self):
         new_name, ok = QInputDialog.getText(
@@ -459,8 +518,12 @@ class KanbanLane(QWidget):
                 widget.deleteLater()
 
         events = self.db.get_lane_events(self.lane_id)
+        # 批量获取耗时，避免每张卡片单独查询
+        elapsed_map = (self.db.get_elapsed_seconds_map([e['id'] for e in events])
+                       if events else {})
         for event in events:
-            card = KanbanCard(event, self.db, self)
+            card = KanbanCard(event, self.db, self,
+                              elapsed_seconds=elapsed_map.get(event['id'], 0))
             card.event_edit_requested.connect(event_edit_callback)
             card.pin_to_desktop.connect(self.pin_to_desktop.emit)
             card.event_duplicate.connect(self.event_duplicate.emit)
@@ -473,6 +536,57 @@ class KanbanLane(QWidget):
         zoom = getattr(self, '_zoom_level', 1.0)
         if zoom != 1.0:
             self.apply_zoom(zoom)
+
+    # ---- 行内快速添加 ----
+
+    def _show_quick_add_input(self):
+        self.quick_add_btn.hide()
+        self.quick_add_input.show()
+        self.quick_add_input.setFocus()
+
+    def _hide_quick_add_input(self):
+        self.quick_add_input.clear()
+        self.quick_add_input.hide()
+        self.quick_add_btn.show()
+
+    def _quick_add_event(self):
+        """行内输入标题后回车：直接创建事项并放入本甬道"""
+        title = self.quick_add_input.text().strip()
+        if not title:
+            self._hide_quick_add_input()
+            return
+        event_id = self.db.add_event(title, board_id=self.board_id)
+
+        # 自动排期：按工作日历避开已有计划（遵循设置开关）
+        if self.db.get_setting('auto_schedule_enabled', True):
+            try:
+                from scheduler import suggest_start
+                start = suggest_start(self.db, 30)
+                self.db.update_event(
+                    event_id, planned_start=start.strftime("%Y-%m-%d %H:%M"))
+            except Exception:
+                pass
+
+        self.db.add_event_to_lane(self.lane_id, event_id)
+        # 同步事项状态与甬道位置一致（与拖拽行为相同）
+        self._sync_event_status(event_id)
+        self._hide_quick_add_input()
+
+        parent = self.parent()
+        while parent and not isinstance(parent, KanbanTab):
+            parent = parent.parent()
+        if parent:
+            for lane_widget in parent.lanes:
+                lane_widget.load_cards(parent.event_edit_requested.emit)
+            parent.event_status_changed.emit()
+
+    def eventFilter(self, obj, event):
+        """快速添加输入框按 Esc 收起"""
+        if obj is self.quick_add_input and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Escape:
+                self._hide_quick_add_input()
+                return True
+        return super().eventFilter(obj, event)
 
     # ---- 拖放 ----
 
@@ -533,7 +647,17 @@ class KanbanLane(QWidget):
 
         event = self.db.get_event(event_id)
         if event and event['status'] != new_status:
-            self.db.update_event(event_id, status=new_status)
+            if new_status == 'completed':
+                # 拖到完成甬道：等同点击"完成"——关闭计时会话并写完成时间
+                self.db.pause_timer(event_id)
+                self.db.update_event(
+                    event_id, status='completed',
+                    completed_at=datetime.now().strftime("%Y-%m-%d %H:%M"))
+            elif event['status'] == 'completed':
+                # 从完成甬道拖回其他甬道：清除完成时间
+                self.db.update_event(event_id, status=new_status, completed_at=None)
+            else:
+                self.db.update_event(event_id, status=new_status)
 
 
 # ==================== 模板选择对话框 ====================
@@ -558,13 +682,13 @@ class TemplateSelectDialog(QDialog):
         # 标题
         title = QLabel("选择看板模板")
         title.setFont(QFont("Microsoft YaHei", 15, QFont.Bold))
-        title.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        title.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
         desc = QLabel("选择一个预设模板来快速初始化看板甬道")
         desc.setFont(QFont("Microsoft YaHei", 10))
-        desc.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
+        desc.setStyleSheet("color: #78716C; background: transparent; border: none;")
         desc.setAlignment(Qt.AlignCenter)
         layout.addWidget(desc)
 
@@ -590,7 +714,7 @@ class TemplateSelectDialog(QDialog):
             btn.setFont(QFont("Microsoft YaHei", 13, QFont.Bold))
             btn.setStyleSheet("""
                 QRadioButton {
-                    color: #2c3e50;
+                    color: #1C1917;
                     background: transparent;
                     border: none;
                     spacing: 10px;
@@ -598,12 +722,12 @@ class TemplateSelectDialog(QDialog):
                 QRadioButton::indicator {
                     width: 18px;
                     height: 18px;
-                    border: 2px solid #bdc3c7;
+                    border: 2px solid #A8A29E;
                     border-radius: 9px;
                 }
                 QRadioButton::indicator:checked {
-                    border: 2px solid #3498db;
-                    background-color: #3498db;
+                    border: 2px solid #F59E0B;
+                    background-color: #F59E0B;
                 }
             """)
             card_layout.addWidget(btn)
@@ -611,7 +735,7 @@ class TemplateSelectDialog(QDialog):
             # 甬道预览
             preview = QLabel(f"甬道：{lane_desc}")
             preview.setFont(QFont("Microsoft YaHei", 10))
-            preview.setStyleSheet("color: #7f8c8d; background: transparent; border: none; padding-left: 28px;")
+            preview.setStyleSheet("color: #78716C; background: transparent; border: none; padding-left: 28px;")
             preview.setWordWrap(True)
             card_layout.addWidget(preview)
 
@@ -663,35 +787,35 @@ class TemplateSelectDialog(QDialog):
                 background-color: #ffffff;
             }
             #templateCard {
-                background-color: #f8f9fa;
-                border: 1px solid #e8e8e8;
+                background-color: #F8FAFC;
+                border: 1px solid #E7E5E4;
                 border-radius: 8px;
             }
             #templateCard:hover {
-                background-color: #f0f4f8;
-                border-color: #3498db;
+                background-color: #FFFBEB;
+                border-color: #FCD34D;
             }
             #dialogCancelBtn {
                 background-color: #ffffff;
-                color: #555;
-                border: 1px solid #dcdde1;
+                color: #475569;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 6px 20px;
             }
             #dialogCancelBtn:hover {
-                background-color: #f0f4f8;
-                border-color: #e74c3c;
-                color: #e74c3c;
+                background-color: #F1F5F9;
+                border-color: #DC2626;
+                color: #DC2626;
             }
             #dialogConfirmBtn {
-                background-color: #3498db;
+                background-color: #F59E0B;
                 color: white;
                 border: none;
                 border-radius: 6px;
                 padding: 6px 20px;
             }
             #dialogConfirmBtn:hover {
-                background-color: #2980b9;
+                background-color: #D97706;
             }
         """)
         shadow = QGraphicsDropShadowEffect(self)
@@ -725,7 +849,7 @@ class NewBoardDialog(QDialog):
         # 标题
         title = QLabel("新建看板")
         title.setFont(QFont("Microsoft YaHei", 15, QFont.Bold))
-        title.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        title.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
@@ -734,7 +858,7 @@ class NewBoardDialog(QDialog):
         # 名称输入
         name_label = QLabel("看板名称")
         name_label.setFont(QFont("Microsoft YaHei", 11))
-        name_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        name_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
@@ -743,14 +867,14 @@ class NewBoardDialog(QDialog):
         self.name_input.setFixedHeight(40)
         self.name_input.setStyleSheet("""
             QLineEdit {
-                background-color: #f8f9fa;
-                border: 1px solid #dcdde1;
+                background-color: #F8FAFC;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 0 12px;
-                color: #2c3e50;
+                color: #1C1917;
             }
             QLineEdit:focus {
-                border-color: #3498db;
+                border-color: #F59E0B;
                 background-color: #ffffff;
             }
         """)
@@ -761,7 +885,7 @@ class NewBoardDialog(QDialog):
         # 截止日期输入
         deadline_label = QLabel("截止日期（可选）")
         deadline_label.setFont(QFont("Microsoft YaHei", 11))
-        deadline_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        deadline_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         layout.addWidget(deadline_label)
 
         deadline_layout = QHBoxLayout()
@@ -775,14 +899,14 @@ class NewBoardDialog(QDialog):
         self.deadline_input.setDate(QDate.currentDate())
         self.deadline_input.setStyleSheet("""
             QDateEdit {
-                background-color: #f8f9fa;
-                border: 1px solid #dcdde1;
+                background-color: #F8FAFC;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 0 12px;
-                color: #2c3e50;
+                color: #1C1917;
             }
             QDateEdit:focus {
-                border-color: #3498db;
+                border-color: #F59E0B;
                 background-color: #ffffff;
             }
         """)
@@ -795,13 +919,13 @@ class NewBoardDialog(QDialog):
             QPushButton {
                 background-color: #ffffff;
                 color: #999;
-                border: 1px solid #dcdde1;
+                border: 1px solid #E7E5E4;
                 border-radius: 4px;
             }
             QPushButton:hover {
                 background-color: #fef0f0;
-                color: #e74c3c;
-                border-color: #e74c3c;
+                color: #DC2626;
+                border-color: #DC2626;
             }
         """)
         self.clear_deadline_btn.clicked.connect(lambda: self.deadline_input.setDate(QDate.currentDate()))
@@ -814,7 +938,7 @@ class NewBoardDialog(QDialog):
         # 模板选择
         tmpl_label = QLabel("选择模板")
         tmpl_label.setFont(QFont("Microsoft YaHei", 11))
-        tmpl_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        tmpl_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         layout.addWidget(tmpl_label)
 
         # 模板列表
@@ -836,7 +960,7 @@ class NewBoardDialog(QDialog):
             btn.setFont(QFont("Microsoft YaHei", 13, QFont.Bold))
             btn.setStyleSheet("""
                 QRadioButton {
-                    color: #2c3e50;
+                    color: #1C1917;
                     background: transparent;
                     border: none;
                     spacing: 8px;
@@ -844,19 +968,19 @@ class NewBoardDialog(QDialog):
                 QRadioButton::indicator {
                     width: 18px;
                     height: 18px;
-                    border: 2px solid #bdc3c7;
+                    border: 2px solid #A8A29E;
                     border-radius: 9px;
                 }
                 QRadioButton::indicator:checked {
-                    border: 2px solid #3498db;
-                    background-color: #3498db;
+                    border: 2px solid #F59E0B;
+                    background-color: #F59E0B;
                 }
             """)
             card_layout.addWidget(btn)
 
             preview = QLabel(f"甬道：{lane_desc}")
             preview.setFont(QFont("Microsoft YaHei", 10))
-            preview.setStyleSheet("color: #555555; background: transparent; border: none; padding-left: 26px;")
+            preview.setStyleSheet("color: #57534E; background: transparent; border: none; padding-left: 26px;")
             preview.setWordWrap(True)
             card_layout.addWidget(preview)
 
@@ -916,35 +1040,35 @@ class NewBoardDialog(QDialog):
                 background-color: #ffffff;
             }
             #templateCard {
-                background-color: #f8f9fa;
-                border: 1px solid #e8e8e8;
+                background-color: #F8FAFC;
+                border: 1px solid #E7E5E4;
                 border-radius: 8px;
             }
             #templateCard:hover {
-                background-color: #f0f4f8;
-                border-color: #3498db;
+                background-color: #FFFBEB;
+                border-color: #FCD34D;
             }
             #dialogCancelBtn {
                 background-color: #ffffff;
-                color: #555;
-                border: 1px solid #dcdde1;
+                color: #475569;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 6px 20px;
             }
             #dialogCancelBtn:hover {
-                background-color: #f0f4f8;
-                border-color: #e74c3c;
-                color: #e74c3c;
+                background-color: #F1F5F9;
+                border-color: #DC2626;
+                color: #DC2626;
             }
             #dialogConfirmBtn {
-                background-color: #3498db;
+                background-color: #F59E0B;
                 color: white;
                 border: none;
                 border-radius: 6px;
                 padding: 6px 20px;
             }
             #dialogConfirmBtn:hover {
-                background-color: #2980b9;
+                background-color: #D97706;
             }
         """)
         shadow = QGraphicsDropShadowEffect(self)
@@ -965,7 +1089,7 @@ class BoardCard(QFrame):
         self.board_id = board_data['id']
         self.board_name = board_data['name']
         self.stats = stats
-        self.setFixedHeight(140)
+        self.setFixedHeight(150)
         self.setCursor(Qt.PointingHandCursor)
 
         self._setup_ui()
@@ -973,14 +1097,27 @@ class BoardCard(QFrame):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 14, 20, 14)
+        layout.setSpacing(6)
 
         # 看板名称
         self.name_label = QLabel(self.board_name)
         self.name_label.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
-        self.name_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        self.name_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         layout.addWidget(self.name_label)
+
+        # 已结项徽章
+        self.closed_at = self.board_data.get('closed_at')
+        if self.closed_at:
+            badge = QLabel(f"已结项 · {str(self.closed_at)[:10]}")
+            badge.setFixedHeight(22)
+            badge.setAlignment(Qt.AlignCenter)
+            badge.setFont(QFont("Microsoft YaHei", 9, QFont.Bold))
+            badge.setStyleSheet(
+                "color: #64748B; background: #F1F5F9; border: 1px solid #E2E8F0; "
+                "border-radius: 11px; padding: 0 12px;")
+            badge.setFixedWidth(140)
+            layout.addWidget(badge, 0, Qt.AlignLeft)
 
         # 统计信息
         lane_count = self.stats.get('lane_count', 0)
@@ -988,15 +1125,45 @@ class BoardCard(QFrame):
         stats_text = f"{lane_count} 个甬道  |  {event_count} 个事项"
         self.stats_label = QLabel(stats_text)
         self.stats_label.setFont(QFont("Microsoft YaHei", 10))
-        self.stats_label.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
+        self.stats_label.setStyleSheet("color: #78716C; background: transparent; border: none;")
         layout.addWidget(self.stats_label)
 
-        # 截止日期
+        # 完成进度条
+        total = self.stats.get('total_count', 0)
+        completed = self.stats.get('completed_count', 0)
+        if total > 0:
+            progress_row = QHBoxLayout()
+            progress_row.setSpacing(10)
+            progress = QProgressBar()
+            progress.setRange(0, total)
+            progress.setValue(completed)
+            progress.setFixedHeight(8)
+            progress.setTextVisible(False)
+            progress.setStyleSheet("""
+                QProgressBar { background: #F1F5F9; border: none; border-radius: 4px; }
+                QProgressBar::chunk { background: #F59E0B; border-radius: 4px; }
+            """)
+            progress_row.addWidget(progress, 1)
+            pct = int(completed / total * 100)
+            pct_label = QLabel(f"完成 {completed}/{total} · {pct}%")
+            pct_label.setFont(QFont("Microsoft YaHei", 9))
+            pct_label.setStyleSheet("color: #57534E; background: transparent; border: none;")
+            progress_row.addWidget(pct_label)
+            layout.addLayout(progress_row)
+
+        # 截止日期（带倒计时；已结项看板不再显示逾期红色）
         deadline = self.board_data.get('deadline', '')
-        if deadline:
-            self.deadline_label = QLabel(f"截止日期: {deadline}")
+        if deadline and not self.closed_at:
+            self.deadline_label = QLabel(self._deadline_text(deadline))
+            self.deadline_label.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
+            self.deadline_label.setStyleSheet(
+                f"color: {self._deadline_color(deadline)}; background: transparent; border: none;")
+            layout.addWidget(self.deadline_label)
+        elif deadline and self.closed_at:
+            self.deadline_label = QLabel(f"原定截止: {deadline}")
             self.deadline_label.setFont(QFont("Microsoft YaHei", 10))
-            self.deadline_label.setStyleSheet("color: #e74c3c; background: transparent; border: none;")
+            self.deadline_label.setStyleSheet(
+                "color: #A8A29E; background: transparent; border: none;")
             layout.addWidget(self.deadline_label)
         else:
             self.deadline_label = QLabel("")
@@ -1010,42 +1177,72 @@ class BoardCard(QFrame):
         else:
             self.date_label = QLabel("")
         self.date_label.setFont(QFont("Microsoft YaHei", 9))
-        self.date_label.setStyleSheet("color: #bdc3c7; background: transparent; border: none;")
+        self.date_label.setStyleSheet("color: #A8A29E; background: transparent; border: none;")
         layout.addWidget(self.date_label)
 
         layout.addStretch()
+
+    @staticmethod
+    def _deadline_days(deadline):
+        """截止日期距今的天数，解析失败返回 None"""
+        try:
+            dl = datetime.strptime(deadline, "%Y-%m-%d").date()
+            return (dl - date.today()).days
+        except (ValueError, TypeError):
+            return None
+
+    def _deadline_text(self, deadline):
+        days_left = self._deadline_days(deadline)
+        if days_left is None:
+            return f"截止日期: {deadline}"
+        if days_left < 0:
+            return f"截止 {deadline} · 已逾期 {abs(days_left)} 天"
+        if days_left == 0:
+            return f"截止 {deadline} · 今天截止"
+        return f"截止 {deadline} · 还剩 {days_left} 天"
+
+    @staticmethod
+    def _deadline_color(deadline):
+        days_left = BoardCard._deadline_days(deadline)
+        if days_left is None:
+            return "#DC2626"
+        if days_left <= 3:
+            return "#DC2626"
+        if days_left <= 7:
+            return "#D97706"
+        return "#57534E"
 
     def _apply_style(self):
         self.setStyleSheet("""
             BoardCard {
                 background-color: #ffffff;
-                border: 1px solid #e8e8e8;
+                border: 1px solid #E7E5E4;
                 border-radius: 10px;
             }
             BoardCard:hover {
-                border-color: #3498db;
-                background-color: #f8fbff;
+                border-color: #FCD34D;
+                background-color: #FFFBEB;
             }
         """)
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(6)
-        shadow.setOffset(1, 2)
-        shadow.setColor(QColor(0, 0, 0, 20))
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 15))
         self.setGraphicsEffect(shadow)
 
     def enterEvent(self, event):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(12)
-        shadow.setOffset(2, 4)
-        shadow.setColor(QColor(0, 0, 0, 35))
+        shadow.setOffset(0, 4)
+        shadow.setColor(QColor(0, 0, 0, 25))
         self.setGraphicsEffect(shadow)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(6)
-        shadow.setOffset(1, 2)
-        shadow.setColor(QColor(0, 0, 0, 20))
+        shadow.setOffset(0, 2)
+        shadow.setColor(QColor(0, 0, 0, 15))
         self.setGraphicsEffect(shadow)
         super().leaveEvent(event)
 
@@ -1056,6 +1253,7 @@ class BoardListPage(QWidget):
     """看板列表页 - 显示所有看板卡片"""
 
     board_opened = pyqtSignal(int)
+    board_close_requested = pyqtSignal(int)  # 结项处理未完成事项
 
     def __init__(self, db, parent=None):
         super().__init__(parent)
@@ -1076,7 +1274,7 @@ class BoardListPage(QWidget):
 
         title_label = QLabel("我的看板")
         title_label.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
-        title_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        title_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         toolbar.addWidget(title_label)
 
         toolbar.addStretch()
@@ -1106,7 +1304,7 @@ class BoardListPage(QWidget):
                 background: transparent;
             }
             QScrollBar::handle:vertical {
-                background: #cccccc;
+                background: #CBD5E1;
                 border-radius: 4px;
                 min-height: 30px;
             }
@@ -1128,20 +1326,21 @@ class BoardListPage(QWidget):
     def _apply_style(self):
         self.setStyleSheet("""
             BoardListPage {
-                background-color: #f0f2f5;
+                background-color: #F5F5F0;
             }
             #addBoardBtn {
-                background-color: #3498db;
+                background-color: #F59E0B;
                 color: white;
                 border: none;
-                border-radius: 8px;
+                border-radius: 6px;
                 padding: 0 24px;
+                font-weight: 600;
             }
             #addBoardBtn:hover {
-                background-color: #2980b9;
+                background-color: #D97706;
             }
             #addBoardBtn:pressed {
-                background-color: #2471a3;
+                background-color: #B45309;
             }
         """)
 
@@ -1192,7 +1391,10 @@ class BoardListPage(QWidget):
             self.boards_changed.emit()
 
     def _show_board_context_menu(self, pos, board_id, board_name, card_widget):
-        """显示看板右键菜单"""
+        """显示看板右键菜单（按结项状态切换条目）"""
+        board = self.db.get_board(board_id)
+        closed = bool(board and board.get('closed_at'))
+
         menu = QMenu(self)
         menu.setStyleSheet("""
             QMenu {
@@ -1214,13 +1416,25 @@ class BoardListPage(QWidget):
         """)
 
         open_action = menu.addAction("打开看板")
+        close_out_action = None
+        reopen_action = None
+        if closed:
+            reopen_action = menu.addAction("重新打开看板（取消结项）")
+        else:
+            close_out_action = menu.addAction("结项看板（处理未完成事项）…")
         rename_action = menu.addAction("重命名")
-        deadline_action = menu.addAction("设置截止日期")
+        deadline_action = None if closed else menu.addAction("设置截止日期")
         delete_action = menu.addAction("删除看板")
 
         action = menu.exec_(card_widget.mapToGlobal(pos))
         if action == open_action:
             self.board_opened.emit(board_id)
+        elif action == reopen_action:
+            self.db.set_board_closed(board_id, False)
+            self.refresh()
+            self.boards_changed.emit()
+        elif action == close_out_action:
+            self.board_close_requested.emit(board_id)
         elif action == rename_action:
             self._rename_board(board_id, board_name)
         elif action == deadline_action:
@@ -1255,7 +1469,7 @@ class BoardListPage(QWidget):
 
         title = QLabel("设置看板截止日期")
         title.setFont(QFont("Microsoft YaHei", 13, QFont.Bold))
-        title.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        title.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         layout.addWidget(title)
 
         date_input = QDateEdit()
@@ -1294,21 +1508,21 @@ class BoardListPage(QWidget):
             QDialog { background-color: #ffffff; }
             QLabel { border: none; }
             QDateEdit {
-                background-color: #f8f9fa;
-                border: 1px solid #dcdde1;
+                background-color: #F8FAFC;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 0 12px;
-                color: #2c3e50;
+                color: #1C1917;
             }
-            QDateEdit:focus { border-color: #3498db; background-color: #ffffff; }
+            QDateEdit:focus { border-color: #F59E0B; background-color: #ffffff; }
             QPushButton {
-                background-color: #ecf0f1;
+                background-color: #F1F5F9;
                 color: #555;
                 border: none;
                 border-radius: 6px;
                 padding: 0 20px;
             }
-            QPushButton:hover { background-color: #dfe6e9; }
+            QPushButton:hover { background-color: #E2E8F0; }
         """)
 
         if dialog.exec_() == QDialog.Accepted:
@@ -1342,6 +1556,7 @@ class KanbanTab(QWidget):
     event_duplicate = pyqtSignal(int)  # 复制事件
     event_delete = pyqtSignal(int)  # 删除事件
     boards_changed = pyqtSignal()  # 看板列表变化
+    board_close_requested = pyqtSignal(int)  # 结项处理未完成事项
 
     def __init__(self, db, parent=None):
         super().__init__(parent)
@@ -1356,6 +1571,8 @@ class KanbanTab(QWidget):
 
         # 连接信号
         self.board_list_page.board_opened.connect(self.open_board)
+        self.board_list_page.board_close_requested.connect(
+            self.board_close_requested.emit)
 
         # 显示看板列表
         self._show_board_list()
@@ -1387,7 +1604,7 @@ class KanbanTab(QWidget):
 
         self.board_title_label = QLabel("")
         self.board_title_label.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
-        self.board_title_label.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        self.board_title_label.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         toolbar.addWidget(self.board_title_label)
 
         toolbar.addStretch()
@@ -1426,7 +1643,7 @@ class KanbanTab(QWidget):
         self.scroll_area.setStyleSheet("""
             QScrollArea {
                 border: none;
-                background-color: #f5f6fa;
+                background-color: #F5F5F0;
                 border-radius: 8px;
             }
             QScrollBar:horizontal {
@@ -1435,7 +1652,7 @@ class KanbanTab(QWidget):
                 margin: 0 4px;
             }
             QScrollBar::handle:horizontal {
-                background: #cccccc;
+                background: #CBD5E1;
                 border-radius: 4px;
                 min-width: 30px;
             }
@@ -1448,7 +1665,7 @@ class KanbanTab(QWidget):
         """)
 
         self.lanes_container = QWidget()
-        self.lanes_container.setStyleSheet("background-color: #f5f6fa;")
+        self.lanes_container.setStyleSheet("background-color: #F5F5F0;")
         self.lanes_container.setLayoutDirection(Qt.LeftToRight)  # 确保从左到右
         self.lanes_layout = QHBoxLayout(self.lanes_container)
         self.lanes_layout.setContentsMargins(8, 8, 8, 8)
@@ -1460,23 +1677,23 @@ class KanbanTab(QWidget):
 
         self.board_view.setStyleSheet("""
             QWidget#boardView {
-                background-color: #f5f6fa;
+                background-color: #F5F5F0;
             }
             QPushButton {
                 background-color: #ffffff;
-                color: #2c3e50;
-                border: 1px solid #dcdde1;
+                color: #475569;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 6px 16px;
                 font-family: "Microsoft YaHei";
             }
             QPushButton:hover {
-                background-color: #f0f4f8;
-                border-color: #3498db;
-                color: #3498db;
+                background-color: #FEF3C7;
+                border-color: #F59E0B;
+                color: #92400E;
             }
             QPushButton:pressed {
-                background-color: #e8f0fe;
+                background-color: #FDE68A;
             }
         """)
 
@@ -1488,7 +1705,7 @@ class KanbanTab(QWidget):
     def _apply_style(self):
         self.setStyleSheet("""
             KanbanTab {
-                background-color: #f0f2f5;
+                background-color: #F5F5F0;
             }
         """)
 
@@ -1500,12 +1717,21 @@ class KanbanTab(QWidget):
         self.current_board_id = None
 
     def _match_lane_by_status(self, status):
-        """根据事件状态匹配目标甬道ID"""
+        """根据事件状态匹配目标甬道ID（优先使用甬道角色，其次按名称关键词/位置）"""
         if self.current_board_id is None:
             return None
         lanes = self.db.get_kanban_lanes(self.current_board_id)
         if not lanes:
             return None
+
+        # 1. 优先按甬道角色匹配（用户在右键菜单中显式设置）
+        role_key = {'pending': 'start', 'in_progress': 'progress',
+                    'completed': 'done'}.get(status)
+        if role_key:
+            for lane in lanes:
+                if lane.get('role') == role_key:
+                    return lane['id']
+
         first_lane_id = lanes[0]['id']
         mid_lane_id = lanes[1]['id'] if len(lanes) >= 2 else lanes[0]['id']
         last_lane_id = lanes[-1]['id']
@@ -1561,7 +1787,6 @@ class KanbanTab(QWidget):
         # 保存当前滚动位置
         scroll_bar = self.scroll_area.horizontalScrollBar()
         old_scroll_pos = scroll_bar.value() if scroll_bar else 0
-        print(f"[看板刷新] 保存滚动位置: {old_scroll_pos}")
 
         # 保存缩放级别
         old_zoom = self._zoom_level
@@ -1577,8 +1802,6 @@ class KanbanTab(QWidget):
             item = self.lanes_layout.takeAt(0)
 
         lanes_data = self.db.get_kanban_lanes(self.current_board_id)
-        print(f"[看板刷新] 甬道数量: {len(lanes_data)}, 甬道顺序: {[l['name'] for l in lanes_data]}")
-        import traceback
         for lane_data in lanes_data:
             try:
                 lane = KanbanLane(lane_data, self.db, self.current_board_id, self.lanes_container)
@@ -1589,7 +1812,7 @@ class KanbanTab(QWidget):
                 self.lanes_layout.addWidget(lane)
                 self.lanes.append(lane)
             except Exception as e:
-                traceback.print_exc()
+                print(f"[看板] 创建甬道失败: {e}")
 
         self.lanes_layout.addStretch()
 
@@ -1603,12 +1826,7 @@ class KanbanTab(QWidget):
         # 恢复滚动位置（延迟执行，等布局完成）
         if scroll_bar is not None:
             saved_pos = old_scroll_pos
-            print(f"[看板刷新] 准备恢复滚动位置: {saved_pos}, 当前值: {scroll_bar.value()}, 最大值: {scroll_bar.maximum()}")
-            QTimer.singleShot(50, lambda: (
-                print(f"[看板刷新] 恢复前: {scroll_bar.value()}, 恢复到: {saved_pos}"),
-                scroll_bar.setValue(saved_pos),
-                print(f"[看板刷新] 恢复后: {scroll_bar.value()}")
-            ))
+            QTimer.singleShot(50, lambda: scroll_bar.setValue(saved_pos))
 
         # 统一刷新所有甬道样式（确保外框和标题颜色正确显示）
         for lane in self.lanes:
@@ -1769,6 +1987,165 @@ class KanbanTab(QWidget):
             self.lanes_layout.setSpacing(new_spacing)
 
 
+# ==================== 批量处理未完成事项对话框 ====================
+
+class BulkResolveDialog(QDialog):
+    """批量处理未完成事项：归档（写备注）或迁移到其他看板
+
+    allow_mark_closed=True 时（看板结项场景）额外提供
+    "同时将看板标记为已结项" 勾选项。
+    """
+
+    def __init__(self, db, events, default_note="批量归档",
+                 exclude_board_id=None, allow_mark_closed=False, parent=None):
+        super().__init__(parent)
+        self.db = db
+        self.events = events
+        self.result_action = None      # 'archive' | 'migrate'
+        self.target_board_id = None
+        self.result_note = default_note
+        self.setWindowTitle("批量处理未完成事项")
+        self.setMinimumWidth(440)
+        self._setup_ui(default_note, exclude_board_id, allow_mark_closed)
+        self._apply_style()
+
+    def _setup_ui(self, default_note, exclude_board_id, allow_mark_closed):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(10)
+
+        title = QLabel(f"批量处理 {len(self.events)} 个未完成事项")
+        title.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        title.setStyleSheet("color: #1C1917; background: transparent; border: none;")
+        layout.addWidget(title)
+
+        preview = "、".join(e.get('title', '未命名') for e in self.events[:8])
+        if len(self.events) > 8:
+            preview += f" … 等共 {len(self.events)} 个"
+        preview_label = QLabel(preview)
+        preview_label.setFont(QFont("Microsoft YaHei", 10))
+        preview_label.setWordWrap(True)
+        preview_label.setStyleSheet(
+            "color: #78716C; background: #F8FAFC; border: 1px solid #E7E5E4; "
+            "border-radius: 6px; padding: 8px;")
+        layout.addWidget(preview_label)
+
+        # 选项1：归档
+        self.archive_radio = QRadioButton("归档这些事项（停止计时并写入归档备注）")
+        self.archive_radio.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
+        self.archive_radio.setChecked(True)
+        self.archive_radio.setStyleSheet("color: #1C1917; background: transparent; border: none;")
+        layout.addWidget(self.archive_radio)
+
+        self.note_input = QLineEdit(default_note)
+        self.note_input.setFont(QFont("Microsoft YaHei", 10))
+        self.note_input.setFixedHeight(32)
+        self.note_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #F8FAFC; border: 1px solid #E7E5E4;
+                border-radius: 6px; padding: 0 10px; color: #1C1917;
+            }
+            QLineEdit:focus { border-color: #F59E0B; }
+        """)
+        layout.addWidget(self.note_input)
+
+        layout.addSpacing(4)
+
+        # 选项2：迁移
+        self.migrate_radio = QRadioButton("迁移到其他看板（按状态自动落入对应甬道）")
+        self.migrate_radio.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
+        self.migrate_radio.setStyleSheet("color: #1C1917; background: transparent; border: none;")
+        layout.addWidget(self.migrate_radio)
+
+        self.board_combo = QComboBox()
+        self.board_combo.setFont(QFont("Microsoft YaHei", 10))
+        self.board_combo.setFixedHeight(34)
+        boards = [b for b in self.db.get_boards() if b['id'] != exclude_board_id]
+        for b in boards:
+            self.board_combo.addItem(b['name'], b['id'])
+        if not boards:
+            self.migrate_radio.setEnabled(False)
+            self.migrate_radio.setText("迁移到其他看板（没有其他看板可选）")
+        self.board_combo.setEnabled(False)
+        self.board_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #F8FAFC; border: 1px solid #E7E5E4;
+                border-radius: 6px; padding: 0 10px; color: #1C1917;
+            }
+            QComboBox:focus { border-color: #F59E0B; }
+        """)
+        layout.addWidget(self.board_combo)
+
+        self.archive_radio.toggled.connect(self.board_combo.setEnabled)
+
+        # 看板结项场景：同时标记看板为已结项
+        self.mark_closed_check = None
+        if allow_mark_closed:
+            self.mark_closed_check = QCheckBox("同时将看板标记为已结项（已结项看板排到列表末尾，可随时右键重新打开）")
+            self.mark_closed_check.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
+            self.mark_closed_check.setChecked(True)
+            self.mark_closed_check.setStyleSheet(
+                "color: #D97706; background: transparent; border: none;")
+            layout.addWidget(self.mark_closed_check)
+
+        layout.addSpacing(8)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        cancel_btn = QPushButton("取消")
+        cancel_btn.setObjectName("dialogCancelBtn")
+        cancel_btn.setFixedHeight(36)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+        ok_btn = QPushButton("执行")
+        ok_btn.setObjectName("dialogConfirmBtn")
+        ok_btn.setFixedHeight(36)
+        ok_btn.clicked.connect(self._on_confirm)
+        btn_layout.addWidget(ok_btn)
+        layout.addLayout(btn_layout)
+
+    def _on_confirm(self):
+        if self.archive_radio.isChecked():
+            self.result_action = 'archive'
+            self.result_note = self.note_input.text().strip() or "批量归档"
+        else:
+            self.result_action = 'migrate'
+            self.target_board_id = self.board_combo.currentData()
+            if self.target_board_id is None:
+                QMessageBox.warning(self, "提示", "请选择目标看板")
+                return
+        self.accept()
+
+    def get_result(self):
+        return self.result_action, self.target_board_id, self.result_note
+
+    def mark_closed(self):
+        """是否同时将看板标记为已结项（仅结项场景有效）"""
+        return bool(self.mark_closed_check and self.mark_closed_check.isChecked())
+
+    def _apply_style(self):
+        self.setStyleSheet("""
+            QDialog { background-color: #ffffff; }
+            QRadioButton::indicator {
+                width: 16px; height: 16px;
+                border: 2px solid #D6D3D1; border-radius: 9px;
+            }
+            QRadioButton::indicator:checked {
+                border: 2px solid #F59E0B; background-color: #F59E0B;
+            }
+            #dialogCancelBtn {
+                background-color: #ffffff; color: #475569;
+                border: 1px solid #E7E5E4; border-radius: 6px; padding: 0 24px;
+            }
+            #dialogCancelBtn:hover { background-color: #F1F5F9; }
+            #dialogConfirmBtn {
+                background-color: #F59E0B; color: white; border: none;
+                border-radius: 6px; padding: 0 24px; font-weight: bold;
+            }
+            #dialogConfirmBtn:hover { background-color: #D97706; }
+        """)
+
+
 # ==================== 导入事件对话框 ====================
 
 class ImportEventsDialog(QDialog):
@@ -1792,13 +2169,13 @@ class ImportEventsDialog(QDialog):
         # 标题
         title = QLabel("导入事件到看板")
         title.setFont(QFont("Microsoft YaHei", 15, QFont.Bold))
-        title.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        title.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
         desc = QLabel("选择要导入到当前看板的事项")
         desc.setFont(QFont("Microsoft YaHei", 10))
-        desc.setStyleSheet("color: #7f8c8d; background: transparent; border: none;")
+        desc.setStyleSheet("color: #78716C; background: transparent; border: none;")
         desc.setAlignment(Qt.AlignCenter)
         layout.addWidget(desc)
 
@@ -1807,7 +2184,7 @@ class ImportEventsDialog(QDialog):
         # 全选复选框
         self.select_all_cb = QCheckBox("全选")
         self.select_all_cb.setFont(QFont("Microsoft YaHei", 11))
-        self.select_all_cb.setStyleSheet("color: #2c3e50; background: transparent; border: none;")
+        self.select_all_cb.setStyleSheet("color: #1C1917; background: transparent; border: none;")
         self.select_all_cb.stateChanged.connect(self._on_select_all)
         layout.addWidget(self.select_all_cb)
 
@@ -1974,7 +2351,7 @@ class ImportEventsDialog(QDialog):
                 background-color: #ffffff;
             }
             QCheckBox {
-                color: #2c3e50;
+                color: #1C1917;
                 background: transparent;
                 border: none;
                 spacing: 6px;
@@ -1982,58 +2359,58 @@ class ImportEventsDialog(QDialog):
             QCheckBox::indicator {
                 width: 16px;
                 height: 16px;
-                border: 2px solid #bdc3c7;
-                border-radius: 3px;
+                border: 2px solid #D6D3D1;
+                border-radius: 4px;
             }
             QCheckBox::indicator:checked {
-                border: 2px solid #3498db;
-                background-color: #3498db;
+                border: 2px solid #F59E0B;
+                background-color: #F59E0B;
             }
             QTableWidget {
                 background-color: #ffffff;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
+                border: 1px solid #E7E5E4;
+                border-radius: 10px;
                 gridline-color: transparent;
                 font-family: "Microsoft YaHei";
             }
             QTableWidget::item {
-                padding: 4px 8px;
-                border-bottom: 1px solid #f0f0f0;
+                padding: 8px 12px;
+                border-bottom: 1px solid #F1F5F9;
             }
             QTableWidget::item:alternate {
-                background-color: #f8f9fa;
+                background-color: #F8FAFC;
             }
             QHeaderView::section {
-                background-color: #f0f2f5;
-                color: #7f8c8d;
+                background-color: #F1F5F9;
+                color: #64748B;
                 border: none;
-                border-bottom: 1px solid #e0e0e0;
-                padding: 8px 6px;
+                border-bottom: 2px solid #E2E8F0;
+                padding: 10px 8px;
                 font-family: "Microsoft YaHei";
                 font-size: 11px;
                 font-weight: bold;
             }
             #dialogCancelBtn {
                 background-color: #ffffff;
-                color: #555;
-                border: 1px solid #dcdde1;
+                color: #475569;
+                border: 1px solid #E7E5E4;
                 border-radius: 6px;
                 padding: 6px 20px;
             }
             #dialogCancelBtn:hover {
-                background-color: #f0f4f8;
-                border-color: #e74c3c;
-                color: #e74c3c;
+                background-color: #F1F5F9;
+                border-color: #DC2626;
+                color: #DC2626;
             }
             #dialogConfirmBtn {
-                background-color: #3498db;
+                background-color: #F59E0B;
                 color: white;
                 border: none;
                 border-radius: 6px;
                 padding: 6px 20px;
             }
             #dialogConfirmBtn:hover {
-                background-color: #2980b9;
+                background-color: #D97706;
             }
         """)
         shadow = QGraphicsDropShadowEffect(self)

@@ -75,6 +75,7 @@ def build_exe():
         '--hidden-import=PyQt5.QtWidgets',
         '--add-data=logo.png;.',
         '--add-data=logo.ico;.',
+        '--add-data=rest_cat.png;.',
         'main.py',
     ]
 
